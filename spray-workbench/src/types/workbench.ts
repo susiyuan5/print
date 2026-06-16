@@ -15,6 +15,7 @@ export type ColorRole = "main" | "secondary" | "accent" | "detail" | "other";
 export type PreviewShape = "car" | "aircraft" | "robot" | "part";
 export type ProjectStatus = "planned" | "in_progress" | "painting" | "reviewing" | "finished" | "archived";
 export type ImageStorageType = "dataUrl" | "localFile" | "remoteUrl";
+export type ColorLabExperimentType = "color_harmony" | "paint_mix";
 
 export interface WorkbenchData {
   version: 1;
@@ -25,7 +26,35 @@ export interface WorkbenchData {
   projects?: SprayProject[];
   workshopImages?: WorkshopImage[];
   parameterTemplates?: SprayStepTemplate[];
+  colorLabExperiments?: ColorLabExperiment[];
   updatedAt: string;
+}
+
+export interface ColorLabExperiment {
+  id: string;
+  type: ColorLabExperimentType;
+  name: string;
+  projectId?: string;
+  baseColorHex?: string;
+  resultColorHex?: string;
+  paintMixItems?: PaintMixItem[];
+  generatedColors?: GeneratedColor[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaintMixItem {
+  paintId: string;
+  ratioPercent: number;
+}
+
+export interface GeneratedColor {
+  role: string;
+  hex: string;
+  rgb: string;
+  hsl: string;
+  notes?: string;
 }
 
 export interface SprayProject {

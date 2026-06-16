@@ -1,5 +1,6 @@
 import type {
   ColorScheme,
+  ColorLabExperiment,
   PaintColor,
   ScaleModel,
   SprayLog,
@@ -26,7 +27,9 @@ export type WorkbenchAction =
   | { type: "updateWorkshopImage"; image: WorkshopImage }
   | { type: "deleteWorkshopImage"; id: string }
   | { type: "upsertTemplate"; template: SprayStepTemplate }
-  | { type: "deleteTemplate"; id: string };
+  | { type: "deleteTemplate"; id: string }
+  | { type: "addColorLabExperiment"; experiment: ColorLabExperiment }
+  | { type: "deleteColorLabExperiment"; id: string };
 
 function touch(data: WorkbenchData): WorkbenchData {
   return { ...data, updatedAt: nowIso() };
@@ -77,6 +80,10 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
             paintIds: step.paintIds.filter((paintId) => paintId !== action.id),
           })),
         })),
+        colorLabExperiments: (data.colorLabExperiments ?? []).map((experiment) => ({
+          ...experiment,
+          paintMixItems: experiment.paintMixItems?.filter((item) => item.paintId !== action.id),
+        })),
       });
     case "upsertScheme":
       return touch({
@@ -123,6 +130,7 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
         ...data,
         projects: (data.projects ?? []).filter((item) => item.id !== action.id),
         workshopImages: (data.workshopImages ?? []).map((image) => image.projectId === action.id ? { ...image, projectId: undefined } : image),
+        colorLabExperiments: (data.colorLabExperiments ?? []).map((experiment) => experiment.projectId === action.id ? { ...experiment, projectId: undefined } : experiment),
       });
     case "addWorkshopImage":
       return touch({ ...data, workshopImages: [action.image, ...(data.workshopImages ?? [])] });
@@ -149,6 +157,10 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
       });
     case "deleteTemplate":
       return touch({ ...data, parameterTemplates: (data.parameterTemplates ?? []).filter((item) => item.id !== action.id) });
+    case "addColorLabExperiment":
+      return touch({ ...data, colorLabExperiments: [action.experiment, ...(data.colorLabExperiments ?? [])] });
+    case "deleteColorLabExperiment":
+      return touch({ ...data, colorLabExperiments: (data.colorLabExperiments ?? []).filter((item) => item.id !== action.id) });
     default:
       return data;
   }

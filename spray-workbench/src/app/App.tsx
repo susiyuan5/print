@@ -1,5 +1,5 @@
 import { NavLink, Route, Routes } from "react-router-dom";
-import { Boxes, Briefcase, Brush, Database, Gauge, Layers3, Palette, SwatchBook } from "lucide-react";
+import { Beaker, Boxes, Briefcase, Brush, Database, Gauge, Layers3, Palette, SwatchBook } from "lucide-react";
 import { DashboardPage } from "../pages/DashboardPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { ModelsPage } from "../pages/ModelsPage";
@@ -7,6 +7,7 @@ import { ColorsPage } from "../pages/ColorsPage";
 import { ColorSchemesPage } from "../pages/ColorSchemesPage";
 import { SprayLogsPage } from "../pages/SprayLogsPage";
 import { ColorPreviewPage } from "../pages/ColorPreviewPage";
+import { ColorLabPage } from "../pages/ColorLabPage";
 import { DataPage } from "../pages/DataPage";
 import { useWorkbench } from "../state/WorkbenchProvider";
 
@@ -16,6 +17,7 @@ const navItems = [
   { to: "/models", label: "模型管理", icon: Boxes },
   { to: "/colors", label: "颜色管理", icon: Palette },
   { to: "/schemes", label: "配色方案", icon: SwatchBook },
+  { to: "/color-lab", label: "配色实验室", icon: Beaker },
   { to: "/logs", label: "喷涂记录", icon: Brush },
   { to: "/preview", label: "颜色预览", icon: Layers3 },
   { to: "/data", label: "数据管理", icon: Database },
@@ -59,6 +61,7 @@ export function App() {
           <Route path="/models" element={<ModelsPage />} />
           <Route path="/colors" element={<ColorsPage />} />
           <Route path="/schemes" element={<ColorSchemesPage />} />
+          <Route path="/color-lab" element={<ColorLabPage />} />
           <Route path="/logs" element={<SprayLogsPage />} />
           <Route path="/preview" element={<ColorPreviewPage />} />
           <Route path="/data" element={<DataPage />} />

@@ -7,6 +7,7 @@ const finishSchema = z.enum(["matte", "satin", "gloss", "metallic", "transparent
 const roleSchema = z.enum(["main", "secondary", "accent", "detail", "other"]);
 const projectStatusSchema = z.enum(["planned", "in_progress", "painting", "reviewing", "finished", "archived"]);
 const imageStorageTypeSchema = z.enum(["dataUrl", "localFile", "remoteUrl"]);
+const colorLabExperimentTypeSchema = z.enum(["color_harmony", "paint_mix"]);
 
 const stepTemplateSchema = z.object({
   id: z.string().min(1),
@@ -121,6 +122,28 @@ export const workbenchDataSchema = z.object({
     updatedAt: z.string().optional(),
   })).optional(),
   parameterTemplates: z.array(stepTemplateSchema).optional(),
+  colorLabExperiments: z.array(z.object({
+    id: z.string().min(1),
+    type: colorLabExperimentTypeSchema,
+    name: z.string().min(1),
+    projectId: z.string().optional(),
+    baseColorHex: z.string().optional(),
+    resultColorHex: z.string().optional(),
+    paintMixItems: z.array(z.object({
+      paintId: z.string(),
+      ratioPercent: z.number().min(0).max(100),
+    })).optional(),
+    generatedColors: z.array(z.object({
+      role: z.string(),
+      hex: z.string(),
+      rgb: z.string(),
+      hsl: z.string(),
+      notes: z.string().optional(),
+    })).optional(),
+    notes: z.string().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })).optional(),
   updatedAt: z.string(),
 });
 
