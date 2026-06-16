@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDelete } from "../components/ui/ConfirmDelete";
 import { Field } from "../components/ui/Field";
 import { PageHeader } from "../components/ui/PageHeader";
+import { checkLocalImageExists, connectImageLibrary, isFileSystemAccessSupported, restoreImageLibrary } from "../data/fileLibrary";
 import { downloadJson, normalizeWorkbenchData, resetData } from "../data/storage";
 import { parseWorkbenchData } from "../data/validators";
 import { useWorkbench } from "../state/WorkbenchProvider";
@@ -25,9 +26,37 @@ export function DataPage() {
   const { data, dispatch, source, setNotice } = useWorkbench();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState("");
+  const [libraryStatus, setLibraryStatus] = useState("正在检查本地图片仓库...");
+  const [libraryHandle, setLibraryHandle] = useState<FileSystemDirectoryHandle | undefined>();
+  const [missingReport, setMissingReport] = useState("");
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [templateForm, setTemplateForm] = useState(emptyTemplate);
   const storageUsage = estimateLocalStorageUsage();
+  const imageStats = useMemo(() => {
+    const images = data.workshopImages ?? [];
+    return {
+      total: images.length,
+      dataUrl: images.filter((image) => (image.storageType ?? "dataUrl") === "dataUrl").length,
+      localFile: images.filter((image) => image.storageType === "localFile").length,
+      remoteUrl: images.filter((image) => image.storageType === "remoteUrl").length,
+    };
+  }, [data.workshopImages]);
+
+  useEffect(() => {
+    if (!isFileSystemAccessSupported()) {
+      setLibraryStatus("当前浏览器不支持本地文件夹写入，请使用桌面版 Chrome 或 Edge，或继续使用内置图片模式。");
+      return;
+    }
+    restoreImageLibrary().then((result) => {
+      if (result.ok) {
+        setLibraryHandle(result.value);
+        setLibraryStatus("本地图片仓库已连接。");
+      } else {
+        setLibraryHandle(undefined);
+        setLibraryStatus(result.error ?? "尚未连接本地图片仓库。");
+      }
+    });
+  }, []);
 
   async function importFile(file?: File) {
     if (!file) return;
@@ -75,6 +104,34 @@ export function DataPage() {
     setTemplateForm(emptyTemplate);
   }
 
+  async function reconnectLibrary() {
+    const result = await connectImageLibrary();
+    if (result.ok) {
+      setLibraryHandle(result.value);
+      setLibraryStatus("本地图片仓库已连接。");
+      setMissingReport("");
+      setNotice("本地图片仓库连接成功。");
+    } else {
+      setLibraryStatus(result.error ?? "无法连接本地图片仓库。");
+    }
+  }
+
+  async function checkMissingImages() {
+    const localImages = (data.workshopImages ?? []).filter((image) => image.storageType === "localFile");
+    if (localImages.length === 0) {
+      setMissingReport("当前没有本地图片仓库图片。");
+      return;
+    }
+    const handle = libraryHandle ?? (await restoreImageLibrary()).value;
+    if (!handle) {
+      setMissingReport("图片仓库未连接，无法检查文件。请先选择或重新连接图片仓库文件夹。");
+      return;
+    }
+    const results = await Promise.all(localImages.map((image) => checkLocalImageExists(handle, image.localRelativePath)));
+    const missingCount = results.filter((exists) => !exists).length;
+    setMissingReport(missingCount === 0 ? `已检查 ${localImages.length} 张本地图片，未发现丢失。` : `已检查 ${localImages.length} 张本地图片，其中 ${missingCount} 张无法读取，请确认文件没有移动或删除。`);
+  }
+
   return (
     <>
       <PageHeader title="数据管理" description="导入、导出和重置喷涂工作台数据。" />
@@ -102,6 +159,30 @@ export function DataPage() {
             重置示例数据
           </button>
           <input ref={inputRef} hidden type="file" accept="application/json,.json" onChange={(event) => importFile(event.target.files?.[0])} />
+        </div>
+      </section>
+      <section className="panel data-panel">
+        <h2>图片仓库</h2>
+        <p>当前图片存储模式：内置存储、本地图片仓库和外部 URL 均可共存。</p>
+        <p>本地图片仓库状态：{libraryStatus}</p>
+        <p>图片统计：共 {imageStats.total} 张，内置图片 {imageStats.dataUrl} 张，本地图片 {imageStats.localFile} 张，外部 URL {imageStats.remoteUrl} 张。</p>
+        <p>localStorage 估算容量：{formatBytes(storageUsage)}</p>
+        {storageUsage > 4 * 1024 * 1024 && <p className="error-text">本地数据已超过 4MB，建议导出 JSON 备份，并把新图片保存到本地图片仓库。</p>}
+        {!isFileSystemAccessSupported() && <p className="error-text">当前浏览器不支持本地文件夹写入，请使用桌面版 Chrome 或 Edge，或继续使用内置图片模式。</p>}
+        <div className="button-row">
+          <button className="button primary" type="button" onClick={reconnectLibrary}>选择 / 重新连接图片仓库</button>
+          <button className="button ghost" type="button" onClick={checkMissingImages}>检查丢失图片</button>
+        </div>
+        {missingReport && <p className="muted">{missingReport}</p>}
+        <div className="backup-note">
+          <strong>备份说明</strong>
+          <p>导出 JSON 时，dataURL 图片会包含在 JSON 中；localFile 图片只导出相对路径和元数据；remoteUrl 图片只导出 URL 和元数据。</p>
+          <p>本地图片仓库里的图片文件不会包含在 JSON 文件中，请同时备份图片文件夹。</p>
+          <pre>{`SprayDigitalWorkshop/
+  workshop-data.json
+  images/
+    xxx.webp
+    xxx.webp`}</pre>
         </div>
       </section>
       <section className="panel">

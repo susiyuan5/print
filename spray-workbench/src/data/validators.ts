@@ -6,6 +6,7 @@ const layerSchema = z.enum(["primer", "base", "shade", "highlight", "detail", "w
 const finishSchema = z.enum(["matte", "satin", "gloss", "metallic", "transparent", "other"]);
 const roleSchema = z.enum(["main", "secondary", "accent", "detail", "other"]);
 const projectStatusSchema = z.enum(["planned", "in_progress", "painting", "reviewing", "finished", "archived"]);
+const imageStorageTypeSchema = z.enum(["dataUrl", "localFile", "remoteUrl"]);
 
 const stepTemplateSchema = z.object({
   id: z.string().min(1),
@@ -107,7 +108,10 @@ export const workbenchDataSchema = z.object({
     title: z.string().optional(),
     notes: z.string().optional(),
     capturedAt: z.string().optional(),
-    dataUrl: z.string(),
+    storageType: imageStorageTypeSchema.optional(),
+    dataUrl: z.string().optional(),
+    imageUrl: z.string().optional(),
+    localRelativePath: z.string().optional(),
     mimeType: z.string(),
     width: z.number(),
     height: z.number(),

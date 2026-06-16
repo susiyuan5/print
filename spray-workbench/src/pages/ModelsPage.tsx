@@ -138,7 +138,7 @@ export function ModelsPage() {
                       onUpdate={(image) => dispatch({ type: "updateWorkshopImage", image })}
                       onDelete={(id) => dispatch({ type: "deleteWorkshopImage", id })}
                     />
-                    <ImageUploader label="插入模型图片" onUpload={(uploaded) => attachModelImages(model.id, uploaded)} />
+                    <ImageUploader label="插入模型图片" fileNamePrefix={`model-${model.id}`} onUpload={(uploaded) => attachModelImages(model.id, uploaded)} />
                     <div className="button-row"><button className="button ghost" onClick={() => edit(model)}>编辑</button><ConfirmDelete onConfirm={() => dispatch({ type: "deleteModel", id: model.id })} /></div>
                   </article>
                 );

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { readLocalImageObjectUrl, restoreImageLibrary } from "../../data/fileLibrary";
 import type { WorkshopImage } from "../../types/workbench";
 import { formatDate, nowIso } from "../../utils/dates";
-import { formatBytes } from "../../utils/images";
+import { formatBytes, getStorageTypeLabel, getWorkshopImageSource } from "../../utils/images";
 import { Field } from "./Field";
 
 interface ImageGalleryProps {
@@ -9,6 +10,53 @@ interface ImageGalleryProps {
   emptyText?: string;
   onUpdate: (image: WorkshopImage) => void;
   onDelete: (id: string) => void;
+}
+
+interface WorkshopImageViewProps {
+  image: WorkshopImage;
+  alt: string;
+}
+
+export function WorkshopImageView({ image, alt }: WorkshopImageViewProps) {
+  const [localUrl, setLocalUrl] = useState("");
+  const [error, setError] = useState("");
+  const source = getWorkshopImageSource(image);
+
+  useEffect(() => {
+    if (image.storageType !== "localFile") return;
+    let objectUrl = "";
+    let cancelled = false;
+    setLocalUrl("");
+    setError("");
+    restoreImageLibrary()
+      .then((library) => readLocalImageObjectUrl(library.value, image.localRelativePath))
+      .then((result) => {
+        if (cancelled) {
+          if (result.ok && result.value) URL.revokeObjectURL(result.value);
+          return;
+        }
+        if (result.ok && result.value) {
+          objectUrl = result.value;
+          setLocalUrl(result.value);
+          setError("");
+        } else {
+          setLocalUrl("");
+          setError(result.error ?? "图片文件未连接或已移动，请重新选择图片仓库文件夹。");
+        }
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [image.localRelativePath, image.storageType]);
+
+  if (image.storageType === "localFile") {
+    if (localUrl) return <img src={localUrl} alt={alt} />;
+    return <div className="local-image-missing">{error || "正在读取本地图片..."}</div>;
+  }
+
+  if (!source) return <div className="local-image-missing">图片来源缺失。</div>;
+  return <img src={source} alt={alt} />;
 }
 
 export function ImageGallery({ images, emptyText = "暂无关联图片。", onUpdate, onDelete }: ImageGalleryProps) {
@@ -25,7 +73,7 @@ export function ImageGallery({ images, emptyText = "暂无关联图片。", onUp
           return (
             <article className="managed-image-card" key={image.id}>
               <button className="image-button" type="button" onClick={() => setPreview(image)}>
-                <img src={image.dataUrl} alt={image.title || "喷涂图片"} />
+                <WorkshopImageView image={image} alt={image.title || "喷涂图片"} />
               </button>
               {isEditing ? (
                 <div className="image-edit-form">
@@ -38,6 +86,8 @@ export function ImageGallery({ images, emptyText = "暂无关联图片。", onUp
                 <>
                   <strong>{image.title || "未命名图片"}</strong>
                   <span>{image.width} x {image.height} · {formatBytes(image.sizeBytes)}</span>
+                  <small>存储：{getStorageTypeLabel(image.storageType)}</small>
+                  {image.storageType === "localFile" && <small>文件：{image.localRelativePath || "未记录路径"}</small>}
                   <small>{image.capturedAt ? `拍摄：${formatDate(image.capturedAt)}` : `添加：${formatDate(image.createdAt)}`}</small>
                   {image.notes && <p>{image.notes}</p>}
                   <div className="button-row">
@@ -62,11 +112,14 @@ export function ImageGallery({ images, emptyText = "暂无关联图片。", onUp
         <div className="image-lightbox" role="dialog" aria-modal="true">
           <div className="image-lightbox-panel">
             <button className="button ghost lightbox-close" type="button" onClick={() => setPreview(null)}>关闭</button>
-            <img src={preview.dataUrl} alt={preview.title || "图片预览"} />
+            <div className="lightbox-image-wrap">
+              <WorkshopImageView image={preview} alt={preview.title || "图片预览"} />
+            </div>
             <div className="lightbox-meta">
               <h2>{preview.title || "未命名图片"}</h2>
               <p>{preview.notes || "暂无备注"}</p>
               <span>{preview.width} x {preview.height} · {formatBytes(preview.sizeBytes)}{preview.originalSizeBytes ? ` · 原图 ${formatBytes(preview.originalSizeBytes)}` : ""}</span>
+              <span>存储方式：{getStorageTypeLabel(preview.storageType)}{preview.localRelativePath ? ` · ${preview.localRelativePath}` : ""}</span>
               <span>{preview.capturedAt ? `拍摄日期：${formatDate(preview.capturedAt)}` : `添加时间：${formatDate(preview.createdAt)}`}</span>
             </div>
           </div>

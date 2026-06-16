@@ -14,14 +14,21 @@ export function estimateLocalStorageUsage() {
   return total * 2;
 }
 
-export async function compressImage(file: File, maxSize = 1400, quality = 0.78) {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
+function loadFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
 
+function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality: number) {
+  return new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, quality));
+}
+
+async function drawCompressedCanvas(file: File, maxSize = 1400) {
+  const dataUrl = await loadFileAsDataUrl(file);
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -38,13 +45,56 @@ export async function compressImage(file: File, maxSize = 1400, quality = 0.78) 
   const context = canvas.getContext("2d");
   if (!context) throw new Error("无法创建图片压缩画布。");
   context.drawImage(image, 0, 0, width, height);
-  const output = canvas.toDataURL("image/jpeg", quality);
+  return { canvas, width, height };
+}
+
+export async function compressImageToBlob(file: File, maxSize = 1400, quality = 0.78) {
+  const { canvas, width, height } = await drawCompressedCanvas(file, maxSize);
+  let blob = await canvasToBlob(canvas, "image/webp", quality);
+  let mimeType = "image/webp";
+  if (!blob) {
+    blob = await canvasToBlob(canvas, "image/jpeg", quality);
+    mimeType = "image/jpeg";
+  }
+  if (!blob) throw new Error("图片压缩失败。");
+  return {
+    blob,
+    mimeType,
+    width,
+    height,
+    originalSizeBytes: file.size,
+    sizeBytes: blob.size,
+  };
+}
+
+export async function compressImage(file: File, maxSize = 1400, quality = 0.78) {
+  const { canvas, width, height } = await drawCompressedCanvas(file, maxSize);
+  const blob = await canvasToBlob(canvas, "image/jpeg", quality);
+  if (!blob) throw new Error("图片压缩失败。");
+  const output = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
   return {
     dataUrl: output,
     mimeType: "image/jpeg",
     width,
     height,
     originalSizeBytes: file.size,
-    sizeBytes: Math.round((output.length * 3) / 4),
+    sizeBytes: blob.size,
   };
+}
+
+export function getWorkshopImageSource(image: { storageType?: string; dataUrl?: string; imageUrl?: string }) {
+  if (image.storageType === "remoteUrl") return image.imageUrl ?? "";
+  if (image.storageType === "localFile") return "";
+  return image.dataUrl ?? image.imageUrl ?? "";
+}
+
+export function getStorageTypeLabel(storageType?: string) {
+  if (storageType === "localFile") return "本地图片仓库";
+  if (storageType === "remoteUrl") return "外部图片 URL";
+  return "内置图片";
 }

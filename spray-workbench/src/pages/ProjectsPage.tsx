@@ -180,7 +180,7 @@ export function ProjectsPage() {
                       onUpdate={(image) => dispatch({ type: "updateWorkshopImage", image })}
                       onDelete={(id) => dispatch({ type: "deleteWorkshopImage", id })}
                     />
-                    <ImageUploader label="插入项目图片" onUpload={(uploaded) => attachProjectImages(project, uploaded)} />
+                    <ImageUploader label="插入项目图片" fileNamePrefix={`project-${project.id}`} onUpload={(uploaded) => attachProjectImages(project, uploaded)} />
                     <h3>时间轴摘要</h3>
                     <div className="timeline-list">
                       {buildTimeline(project, projectImages.length).map((event, index) => <span key={`${project.id}-${index}`}>{formatDate(event.date)} · {event.title}</span>)}

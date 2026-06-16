@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { WorkshopImageView } from "../components/ui/ImageGallery";
 import { ImagePreview } from "../components/ui/ImagePreview";
 import { PageHeader } from "../components/ui/PageHeader";
 import { useWorkbench } from "../state/WorkbenchProvider";
@@ -13,7 +14,7 @@ export function DashboardPage() {
   const recentProject = [...projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
   const activeProjects = projects.filter((project) => activeStatuses.has(project.status)).slice(0, 4);
   const galleryItems = [
-    ...images.map((image) => ({ id: image.id, title: image.title || "图片档案", url: image.dataUrl, source: image.projectId ? "项目图片" : image.modelId ? "模型图片" : "步骤图片" })),
+    ...images.map((image) => ({ id: image.id, title: image.title || "图片档案", image, source: image.projectId ? "项目图片" : image.modelId ? "模型图片" : "步骤图片" })),
     ...data.models.filter((model) => model.imageUrl).map((model) => ({ id: model.id, title: model.name, url: model.imageUrl!, source: "模型图片" })),
     ...data.sprayLogs.flatMap((log) => log.imageUrls.map((url, index) => ({ id: `${log.id}-${index}`, title: log.title, url, source: "喷涂记录" }))),
   ].slice(0, 8);
@@ -73,7 +74,7 @@ export function DashboardPage() {
           <div className="gallery-grid">
             {galleryItems.map((item) => (
               <article className="gallery-card" key={item.id}>
-                <ImagePreview url={item.url} alt={item.title} />
+                {"image" in item ? <WorkshopImageView image={item.image} alt={item.title} /> : <ImagePreview url={item.url} alt={item.title} />}
                 <strong>{item.title}</strong>
                 <span>{item.source}</span>
               </article>

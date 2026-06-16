@@ -263,7 +263,7 @@ export function SprayLogsPage() {
                               onUpdate={(image) => dispatch({ type: "updateWorkshopImage", image })}
                               onDelete={(id) => dispatch({ type: "deleteWorkshopImage", id })}
                             />
-                            <ImageUploader label="插入步骤图片" onUpload={(uploaded) => attachStepImages(log.id, step.id, log.modelId, uploaded)} />
+                            <ImageUploader label="插入步骤图片" fileNamePrefix={`step-${step.id}`} onUpload={(uploaded) => attachStepImages(log.id, step.id, log.modelId, uploaded)} />
                           </div>
                         );
                       })}

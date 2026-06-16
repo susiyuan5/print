@@ -14,6 +14,7 @@ export type PaintFinish = "matte" | "satin" | "gloss" | "metallic" | "transparen
 export type ColorRole = "main" | "secondary" | "accent" | "detail" | "other";
 export type PreviewShape = "car" | "aircraft" | "robot" | "part";
 export type ProjectStatus = "planned" | "in_progress" | "painting" | "reviewing" | "finished" | "archived";
+export type ImageStorageType = "dataUrl" | "localFile" | "remoteUrl";
 
 export interface WorkbenchData {
   version: 1;
@@ -53,7 +54,10 @@ export interface WorkshopImage {
   title?: string;
   notes?: string;
   capturedAt?: string;
-  dataUrl: string;
+  storageType?: ImageStorageType;
+  dataUrl?: string;
+  imageUrl?: string;
+  localRelativePath?: string;
   mimeType: string;
   width: number;
   height: number;

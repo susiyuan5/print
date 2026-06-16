@@ -1,7 +1,7 @@
 import { sampleData } from "./sampleData";
 import { sprayStepTemplates } from "./stepTemplates";
 import { parseWorkbenchData } from "./validators";
-import type { WorkbenchData } from "../types/workbench";
+import type { ImageStorageType, WorkbenchData } from "../types/workbench";
 
 export const STORAGE_KEY = "spray-workbench:data:v1";
 
@@ -17,15 +17,22 @@ export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
   return {
     ...data,
     projects: data.projects ?? [],
-    workshopImages: (data.workshopImages ?? []).map((image) => ({
-      ...image,
-      title: image.title ?? "",
-      notes: image.notes ?? "",
-      capturedAt: image.capturedAt ?? "",
-      stepId: image.stepId ?? undefined,
-      originalSizeBytes: image.originalSizeBytes ?? image.sizeBytes,
-      updatedAt: image.updatedAt ?? image.createdAt,
-    })),
+    workshopImages: (data.workshopImages ?? []).map((image) => {
+      const storageType: ImageStorageType = image.storageType ?? (image.dataUrl ? "dataUrl" : image.imageUrl ? "remoteUrl" : "dataUrl");
+      return {
+        ...image,
+        storageType,
+        dataUrl: storageType === "dataUrl" ? image.dataUrl : image.dataUrl,
+        imageUrl: storageType === "remoteUrl" ? image.imageUrl : image.imageUrl,
+        localRelativePath: storageType === "localFile" ? image.localRelativePath : image.localRelativePath,
+        title: image.title ?? "",
+        notes: image.notes ?? "",
+        capturedAt: image.capturedAt ?? "",
+        stepId: image.stepId ?? undefined,
+        originalSizeBytes: image.originalSizeBytes ?? image.sizeBytes,
+        updatedAt: image.updatedAt ?? image.createdAt,
+      };
+    }),
     parameterTemplates: data.parameterTemplates?.length ? data.parameterTemplates : sprayStepTemplates,
   };
 }
