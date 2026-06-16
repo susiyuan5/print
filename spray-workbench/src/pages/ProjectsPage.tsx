@@ -2,14 +2,14 @@ import { useState } from "react";
 import { ConfirmDelete } from "../components/ui/ConfirmDelete";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Field } from "../components/ui/Field";
-import { ImageUploader } from "../components/ui/ImageUploader";
+import { ImageGallery } from "../components/ui/ImageGallery";
+import { ImageUploader, type UploadedImagePayload } from "../components/ui/ImageUploader";
 import { PageHeader } from "../components/ui/PageHeader";
 import { useWorkbench } from "../state/WorkbenchProvider";
 import type { ProjectStatus, SprayProject } from "../types/workbench";
 import { splitTags, statusLabels } from "../utils/colors";
 import { formatDate, nowIso } from "../utils/dates";
 import { createId } from "../utils/ids";
-import { formatBytes } from "../utils/images";
 
 const projectStatusLabels: Record<ProjectStatus, string> = {
   planned: "计划中",
@@ -33,14 +33,14 @@ const emptyForm = {
   notes: "",
 };
 
-function buildTimeline(project: SprayProject) {
+function buildTimeline(project: SprayProject, imageCount: number) {
   const events = [
     { date: project.createdAt, title: "创建项目" },
-    ...project.colorSchemeIds.map((id) => ({ date: project.updatedAt, title: `关联配色方案 ${id}` })),
-    ...project.sprayLogIds.map((id) => ({ date: project.updatedAt, title: `关联喷涂记录 ${id}` })),
-    ...project.imageIds.map((id) => ({ date: project.updatedAt, title: `添加项目图片 ${id}` })),
+    ...project.colorSchemeIds.map(() => ({ date: project.updatedAt, title: "关联配色方案" })),
+    ...project.sprayLogIds.map(() => ({ date: project.updatedAt, title: "关联喷涂记录" })),
+    ...Array.from({ length: imageCount }).map(() => ({ date: project.updatedAt, title: "插入项目图片" })),
   ];
-  return events.slice(0, 6);
+  return events.slice(0, 8);
 }
 
 export function ProjectsPage() {
@@ -92,6 +92,27 @@ export function ProjectsPage() {
     });
     setEditingId(null);
     setForm(emptyForm);
+  }
+
+  function attachProjectImages(project: SprayProject, uploaded: UploadedImagePayload[]) {
+    const timestamp = nowIso();
+    const ids = uploaded.map(() => createId("image"));
+    uploaded.forEach((image, index) => {
+      dispatch({
+        type: "addWorkshopImage",
+        image: {
+          id: ids[index],
+          projectId: project.id,
+          title: image.title,
+          notes: "",
+          capturedAt: "",
+          ...image,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      });
+    });
+    dispatch({ type: "upsertProject", project: { ...project, imageIds: [...ids, ...project.imageIds], updatedAt: timestamp } });
   }
 
   return (
@@ -152,21 +173,17 @@ export function ProjectsPage() {
                     <span>配色方案：{project.colorSchemeIds.map((id) => data.colorSchemes.find((scheme) => scheme.id === id)?.name).filter(Boolean).join("，") || "未关联"}</span>
                     <span>喷涂记录：{project.sprayLogIds.map((id) => data.sprayLogs.find((log) => log.id === id)?.title).filter(Boolean).join("，") || "未关联"}</span>
                     <div className="tag-row">{project.styleKeywords.map((tag) => <span key={tag}>{tag}</span>)}</div>
-                    <div className="project-images">
-                      {projectImages.length === 0 ? <small>暂无项目图片</small> : projectImages.map((image) => (
-                        <figure key={image.id}>
-                          <img src={image.dataUrl} alt={image.title || project.name} />
-                          <figcaption>{image.width} x {image.height} · {formatBytes(image.sizeBytes)}</figcaption>
-                        </figure>
-                      ))}
-                    </div>
-                    <ImageUploader onUpload={(image) => {
-                      const id = createId("image");
-                      dispatch({ type: "addWorkshopImage", image: { id, projectId: project.id, ...image, createdAt: nowIso() } });
-                      dispatch({ type: "upsertProject", project: { ...project, imageIds: [id, ...project.imageIds], updatedAt: nowIso() } });
-                    }} />
+                    <h3>项目图片</h3>
+                    <ImageGallery
+                      images={projectImages}
+                      emptyText="暂无项目图片。"
+                      onUpdate={(image) => dispatch({ type: "updateWorkshopImage", image })}
+                      onDelete={(id) => dispatch({ type: "deleteWorkshopImage", id })}
+                    />
+                    <ImageUploader label="插入项目图片" onUpload={(uploaded) => attachProjectImages(project, uploaded)} />
+                    <h3>时间轴摘要</h3>
                     <div className="timeline-list">
-                      {buildTimeline(project).map((event, index) => <span key={`${project.id}-${index}`}>{formatDate(event.date)} · {event.title}</span>)}
+                      {buildTimeline(project, projectImages.length).map((event, index) => <span key={`${project.id}-${index}`}>{formatDate(event.date)} · {event.title}</span>)}
                     </div>
                     <div className="button-row"><button className="button ghost" onClick={() => edit(project)}>编辑</button><ConfirmDelete onConfirm={() => dispatch({ type: "deleteProject", id: project.id })} /></div>
                   </article>

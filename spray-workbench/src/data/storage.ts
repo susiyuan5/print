@@ -17,7 +17,15 @@ export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
   return {
     ...data,
     projects: data.projects ?? [],
-    workshopImages: data.workshopImages ?? [],
+    workshopImages: (data.workshopImages ?? []).map((image) => ({
+      ...image,
+      title: image.title ?? "",
+      notes: image.notes ?? "",
+      capturedAt: image.capturedAt ?? "",
+      stepId: image.stepId ?? undefined,
+      originalSizeBytes: image.originalSizeBytes ?? image.sizeBytes,
+      updatedAt: image.updatedAt ?? image.createdAt,
+    })),
     parameterTemplates: data.parameterTemplates?.length ? data.parameterTemplates : sprayStepTemplates,
   };
 }

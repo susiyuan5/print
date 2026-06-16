@@ -13,7 +13,7 @@ export function DashboardPage() {
   const recentProject = [...projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
   const activeProjects = projects.filter((project) => activeStatuses.has(project.status)).slice(0, 4);
   const galleryItems = [
-    ...images.map((image) => ({ id: image.id, title: image.title || "项目图片", url: image.dataUrl, source: "项目图片" })),
+    ...images.map((image) => ({ id: image.id, title: image.title || "图片档案", url: image.dataUrl, source: image.projectId ? "项目图片" : image.modelId ? "模型图片" : "步骤图片" })),
     ...data.models.filter((model) => model.imageUrl).map((model) => ({ id: model.id, title: model.name, url: model.imageUrl!, source: "模型图片" })),
     ...data.sprayLogs.flatMap((log) => log.imageUrls.map((url, index) => ({ id: `${log.id}-${index}`, title: log.title, url, source: "喷涂记录" }))),
   ].slice(0, 8);

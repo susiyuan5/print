@@ -23,6 +23,7 @@ export type WorkbenchAction =
   | { type: "upsertProject"; project: SprayProject }
   | { type: "deleteProject"; id: string }
   | { type: "addWorkshopImage"; image: WorkshopImage }
+  | { type: "updateWorkshopImage"; image: WorkshopImage }
   | { type: "deleteWorkshopImage"; id: string }
   | { type: "upsertTemplate"; template: SprayStepTemplate }
   | { type: "deleteTemplate"; id: string };
@@ -125,6 +126,11 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
       });
     case "addWorkshopImage":
       return touch({ ...data, workshopImages: [action.image, ...(data.workshopImages ?? [])] });
+    case "updateWorkshopImage":
+      return touch({
+        ...data,
+        workshopImages: (data.workshopImages ?? []).map((item) => item.id === action.image.id ? action.image : item),
+      });
     case "deleteWorkshopImage":
       return touch({
         ...data,

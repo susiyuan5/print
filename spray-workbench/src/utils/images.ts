@@ -44,6 +44,7 @@ export async function compressImage(file: File, maxSize = 1400, quality = 0.78) 
     mimeType: "image/jpeg",
     width,
     height,
+    originalSizeBytes: file.size,
     sizeBytes: Math.round((output.length * 3) / 4),
   };
 }

@@ -2,7 +2,9 @@ import { useState } from "react";
 import { ConfirmDelete } from "../components/ui/ConfirmDelete";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Field } from "../components/ui/Field";
+import { ImageGallery } from "../components/ui/ImageGallery";
 import { ImagePreview } from "../components/ui/ImagePreview";
+import { ImageUploader, type UploadedImagePayload } from "../components/ui/ImageUploader";
 import { PageHeader } from "../components/ui/PageHeader";
 import { useWorkbench } from "../state/WorkbenchProvider";
 import type { PaintLayerType, SprayLog } from "../types/workbench";
@@ -52,12 +54,10 @@ export function SprayLogsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const imageUrls = splitImageUrls(form.imageUrlsText);
+  const workshopImages = data.workshopImages ?? [];
 
   function updateStep(index: number, patch: Partial<StepDraft>) {
-    setForm({
-      ...form,
-      steps: form.steps.map((step, stepIndex) => (stepIndex === index ? { ...step, ...patch } : step)),
-    });
+    setForm({ ...form, steps: form.steps.map((step, stepIndex) => (stepIndex === index ? { ...step, ...patch } : step)) });
   }
 
   function addStep() {
@@ -147,9 +147,30 @@ export function SprayLogsPage() {
     setForm({ ...emptyForm, steps: [createEmptyStep()], date: todayDate() });
   }
 
+  function attachStepImages(logId: string, stepId: string, modelId: string, uploaded: UploadedImagePayload[]) {
+    const timestamp = nowIso();
+    uploaded.forEach((image) => {
+      dispatch({
+        type: "addWorkshopImage",
+        image: {
+          id: createId("image"),
+          modelId,
+          sprayLogId: logId,
+          stepId,
+          title: image.title,
+          notes: "",
+          capturedAt: "",
+          ...image,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      });
+    });
+  }
+
   return (
     <>
-      <PageHeader title="喷涂记录" description="记录每次喷涂使用的模型、图片、步骤、颜色和参数。" />
+      <PageHeader title="喷涂记录" description="记录每次喷涂使用的模型、步骤、颜色、参数和步骤图片。" />
       <section className="editor-layout wide-editor">
         <form className="panel form-panel" onSubmit={submit}>
           <h2>{editingId ? "编辑喷涂记录" : "新增喷涂记录"}</h2>
@@ -163,12 +184,8 @@ export function SprayLogsPage() {
               {data.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
             </select>
           </Field>
-          <Field label="图片 URL"><textarea value={form.imageUrlsText} onChange={(e) => setForm({ ...form, imageUrlsText: e.target.value })} placeholder="每行一个图片 URL，也可以用逗号分隔" /></Field>
-          {imageUrls.length > 0 && (
-            <div className="image-grid">
-              {imageUrls.map((url) => <ImagePreview key={url} url={url} alt="喷涂记录图片预览" />)}
-            </div>
-          )}
+          <Field label="图片 URL（保留旧方式）"><textarea value={form.imageUrlsText} onChange={(e) => setForm({ ...form, imageUrlsText: e.target.value })} placeholder="每行一个图片 URL，也可以用逗号分隔" /></Field>
+          {imageUrls.length > 0 && <div className="image-grid">{imageUrls.map((url) => <ImagePreview key={url} url={url} alt="喷涂记录 URL 图片预览" />)}</div>}
           <div className="section-heading">
             <h3>喷涂步骤</h3>
             <button className="button ghost" type="button" onClick={addStep}>新增步骤</button>
@@ -210,32 +227,46 @@ export function SprayLogsPage() {
                   <Field label="技巧"><input value={step.technique} onChange={(e) => updateStep(index, { technique: e.target.value })} /></Field>
                 </div>
                 <Field label="备注"><textarea value={step.notes} onChange={(e) => updateStep(index, { notes: e.target.value })} /></Field>
+                {editingId ? <p className="muted">步骤图片请在右侧记录卡片中插入，保存后会关联到当前步骤。</p> : <p className="muted">新记录保存后即可为每一步插入图片。</p>}
               </section>
             ))}
           </div>
           <Field label="结果备注"><textarea value={form.resultNotes} onChange={(e) => setForm({ ...form, resultNotes: e.target.value })} /></Field>
-          <div className="button-row"><button className="button primary" type="submit">{editingId ? "保存记录" : "新增记录"}</button>{editingId && <button className="button ghost" type="button" onClick={() => { setEditingId(null); setForm({ ...emptyForm, steps: [createEmptyStep()], date: todayDate() }); }}>取消编辑</button>}</div>
+          <div className="button-row">
+            <button className="button primary" type="submit">{editingId ? "保存记录" : "新增记录"}</button>
+            {editingId && <button className="button ghost" type="button" onClick={() => { setEditingId(null); setForm({ ...emptyForm, steps: [createEmptyStep()], date: todayDate() }); }}>取消编辑</button>}
+          </div>
         </form>
         <section className="panel">
           <h2>记录列表</h2>
-          {data.sprayLogs.length === 0 ? <EmptyState title="还没有喷涂记录" description="完成一次喷涂后，把模型、颜色和参数记录下来。" /> : (
+          {data.sprayLogs.length === 0 ? <EmptyState title="还没有喷涂记录" description="完成一次喷涂后，把模型、颜色、参数和图片记录下来。" /> : (
             <div className="item-list">
               {data.sprayLogs.map((log) => {
                 const model = data.models.find((item) => item.id === log.modelId);
                 return (
                   <article className="list-card" key={log.id}>
-                    {log.imageUrls[0] && <ImagePreview url={log.imageUrls[0]} alt={`${log.title} 图片`} />}
+                    {log.imageUrls[0] && <ImagePreview url={log.imageUrls[0]} alt={`${log.title} URL 图片`} />}
                     <div className="card-top"><strong>{log.title}</strong><span className="badge">{log.date}</span></div>
                     <span>模型：{model?.name ?? "模型已删除"}</span>
                     <span>步骤：{log.steps.length} 个</span>
                     <div className="step-summary-list">
-                      {log.steps.map((step, index) => (
-                        <div key={step.id} className="step-summary">
-                          <strong>{index + 1}. {step.title}</strong>
-                          <span>{layerLabels[step.layerType]} · {step.paintIds.map((id) => data.paints.find((paint) => paint.id === id)?.name ?? "颜色已删除").join("，") || "未选择颜色"}</span>
-                          <small>{[step.ratio, step.pressure, step.thinner, step.technique].filter(Boolean).join(" · ") || "未填写参数"}</small>
-                        </div>
-                      ))}
+                      {log.steps.map((step, index) => {
+                        const stepImages = workshopImages.filter((image) => image.sprayLogId === log.id && image.stepId === step.id);
+                        return (
+                          <div key={step.id} className="step-summary">
+                            <strong>{index + 1}. {step.title}</strong>
+                            <span>{layerLabels[step.layerType]} · {step.paintIds.map((id) => data.paints.find((paint) => paint.id === id)?.name ?? "颜色已删除").join("，") || "未选择颜色"}</span>
+                            <small>{[step.ratio, step.pressure, step.thinner, step.technique].filter(Boolean).join(" · ") || "未填写参数"}</small>
+                            <ImageGallery
+                              images={stepImages}
+                              emptyText="暂无步骤图片。"
+                              onUpdate={(image) => dispatch({ type: "updateWorkshopImage", image })}
+                              onDelete={(id) => dispatch({ type: "deleteWorkshopImage", id })}
+                            />
+                            <ImageUploader label="插入步骤图片" onUpload={(uploaded) => attachStepImages(log.id, step.id, log.modelId, uploaded)} />
+                          </div>
+                        );
+                      })}
                     </div>
                     <p>{log.resultNotes || "暂无结果备注"}</p>
                     <div className="button-row"><button className="button ghost" onClick={() => edit(log)}>编辑</button><ConfirmDelete onConfirm={() => dispatch({ type: "deleteLog", id: log.id })} /></div>

@@ -49,13 +49,18 @@ export interface WorkshopImage {
   projectId?: string;
   modelId?: string;
   sprayLogId?: string;
+  stepId?: string;
   title?: string;
+  notes?: string;
+  capturedAt?: string;
   dataUrl: string;
   mimeType: string;
   width: number;
   height: number;
+  originalSizeBytes?: number;
   sizeBytes: number;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface SprayStepTemplate {

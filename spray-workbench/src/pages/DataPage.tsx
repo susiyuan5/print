@@ -9,6 +9,7 @@ import type { PaintLayerType, SprayStepTemplate } from "../types/workbench";
 import { layerLabels } from "../utils/colors";
 import { nowIso } from "../utils/dates";
 import { createId } from "../utils/ids";
+import { estimateLocalStorageUsage, formatBytes } from "../utils/images";
 
 const emptyTemplate = {
   name: "",
@@ -26,6 +27,7 @@ export function DataPage() {
   const [error, setError] = useState("");
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [templateForm, setTemplateForm] = useState(emptyTemplate);
+  const storageUsage = estimateLocalStorageUsage();
 
   async function importFile(file?: File) {
     if (!file) return;
@@ -81,6 +83,8 @@ export function DataPage() {
         <p>数据来源：{source === "localStorage" ? "浏览器本地自动保存" : "示例数据"}</p>
         <p>本地保存键：<code>spray-workbench:data:v1</code></p>
         <p>最后更新时间：{data.updatedAt}</p>
+        <p>当前估算容量：{formatBytes(storageUsage)}</p>
+        {storageUsage > 4 * 1024 * 1024 && <p className="error-text">本地数据已超过 4MB，建议立即导出 JSON 备份，并减少图片数量。</p>}
         {error && <p className="error-text">{error}</p>}
         <div className="button-row">
           <button className="button primary" type="button" onClick={() => downloadJson(data)}>导出 JSON</button>
