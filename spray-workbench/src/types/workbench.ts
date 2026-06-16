@@ -16,6 +16,13 @@ export type PreviewShape = "car" | "aircraft" | "robot" | "part";
 export type ProjectStatus = "planned" | "in_progress" | "painting" | "reviewing" | "finished" | "archived";
 export type ImageStorageType = "dataUrl" | "localFile" | "remoteUrl";
 export type ColorLabExperimentType = "color_harmony" | "paint_mix";
+export type AiShadowLevel = "low" | "medium" | "high";
+export type AiHighlightLevel = "low" | "medium" | "high";
+export type AiContrastLevel = "natural" | "high" | "comic";
+export type AiVolumeLevel = "natural" | "enhanced_body" | "enhanced_mecha";
+export type AiEdgeHighlight = "none" | "subtle" | "strong";
+export type AiPreserveOriginal = "strict" | "slight_beautify";
+export type ComfyImageMode = "img2img" | "reference_image" | "control_workflow";
 
 export interface WorkbenchData {
   version: 1;
@@ -27,6 +34,47 @@ export interface WorkbenchData {
   workshopImages?: WorkshopImage[];
   parameterTemplates?: SprayStepTemplate[];
   colorLabExperiments?: ColorLabExperiment[];
+  aiRepaintConcepts?: AiRepaintConcept[];
+  updatedAt: string;
+}
+
+export interface AiRepaintConcept {
+  id: string;
+  name: string;
+  projectId?: string;
+  sourceImageId?: string;
+  resultImageIds: string[];
+  modelType?: string;
+  stylePreset?: string;
+  mainColorHex?: string;
+  secondaryColorHex?: string;
+  accentColorHex?: string;
+  shadowColorHex?: string;
+  highlightColorHex?: string;
+  lightingDirection?: string;
+  shadowLevel?: AiShadowLevel;
+  highlightLevel?: AiHighlightLevel;
+  contrastLevel?: AiContrastLevel;
+  volumeLevel?: AiVolumeLevel;
+  edgeHighlight?: AiEdgeHighlight;
+  preserveOriginal?: AiPreserveOriginal;
+  comfyModelType?: string;
+  comfyImageMode?: ComfyImageMode;
+  denoiseStrength?: string;
+  cfgScale?: string;
+  steps?: string;
+  samplerNotes?: string;
+  seedNotes?: string;
+  loraNotes?: string;
+  controlNetNotes?: string;
+  positivePromptZh: string;
+  negativePromptZh: string;
+  positivePromptEn: string;
+  negativePromptEn: string;
+  comfyPromptEn: string;
+  promptZhDescription: string;
+  notes?: string;
+  createdAt: string;
   updatedAt: string;
 }
 

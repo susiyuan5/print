@@ -1,4 +1,5 @@
 import type {
+  AiRepaintConcept,
   ColorScheme,
   ColorLabExperiment,
   PaintColor,
@@ -29,7 +30,10 @@ export type WorkbenchAction =
   | { type: "upsertTemplate"; template: SprayStepTemplate }
   | { type: "deleteTemplate"; id: string }
   | { type: "addColorLabExperiment"; experiment: ColorLabExperiment }
-  | { type: "deleteColorLabExperiment"; id: string };
+  | { type: "deleteColorLabExperiment"; id: string }
+  | { type: "addAiRepaintConcept"; concept: AiRepaintConcept }
+  | { type: "updateAiRepaintConcept"; concept: AiRepaintConcept }
+  | { type: "deleteAiRepaintConcept"; id: string };
 
 function touch(data: WorkbenchData): WorkbenchData {
   return { ...data, updatedAt: nowIso() };
@@ -131,6 +135,7 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
         projects: (data.projects ?? []).filter((item) => item.id !== action.id),
         workshopImages: (data.workshopImages ?? []).map((image) => image.projectId === action.id ? { ...image, projectId: undefined } : image),
         colorLabExperiments: (data.colorLabExperiments ?? []).map((experiment) => experiment.projectId === action.id ? { ...experiment, projectId: undefined } : experiment),
+        aiRepaintConcepts: (data.aiRepaintConcepts ?? []).map((concept) => concept.projectId === action.id ? { ...concept, projectId: undefined } : concept),
       });
     case "addWorkshopImage":
       return touch({ ...data, workshopImages: [action.image, ...(data.workshopImages ?? [])] });
@@ -147,6 +152,11 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
           ...project,
           imageIds: project.imageIds.filter((id) => id !== action.id),
         })),
+        aiRepaintConcepts: (data.aiRepaintConcepts ?? []).map((concept) => ({
+          ...concept,
+          sourceImageId: concept.sourceImageId === action.id ? undefined : concept.sourceImageId,
+          resultImageIds: concept.resultImageIds.filter((id) => id !== action.id),
+        })),
       });
     case "upsertTemplate":
       return touch({
@@ -161,6 +171,15 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
       return touch({ ...data, colorLabExperiments: [action.experiment, ...(data.colorLabExperiments ?? [])] });
     case "deleteColorLabExperiment":
       return touch({ ...data, colorLabExperiments: (data.colorLabExperiments ?? []).filter((item) => item.id !== action.id) });
+    case "addAiRepaintConcept":
+      return touch({ ...data, aiRepaintConcepts: [action.concept, ...(data.aiRepaintConcepts ?? [])] });
+    case "updateAiRepaintConcept":
+      return touch({
+        ...data,
+        aiRepaintConcepts: (data.aiRepaintConcepts ?? []).map((item) => item.id === action.concept.id ? action.concept : item),
+      });
+    case "deleteAiRepaintConcept":
+      return touch({ ...data, aiRepaintConcepts: (data.aiRepaintConcepts ?? []).filter((item) => item.id !== action.id) });
     default:
       return data;
   }

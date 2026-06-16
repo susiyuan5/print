@@ -2,12 +2,28 @@ import { useMemo, useState } from "react";
 import { ConfirmDelete } from "../components/ui/ConfirmDelete";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Field } from "../components/ui/Field";
+import { ImageUploader, type UploadedImagePayload } from "../components/ui/ImageUploader";
+import { WorkshopImageView } from "../components/ui/ImageGallery";
 import { PageHeader } from "../components/ui/PageHeader";
 import { useWorkbench } from "../state/WorkbenchProvider";
-import type { ColorRole, GeneratedColor, PaintFinish, PaintMixItem } from "../types/workbench";
+import type {
+  AiContrastLevel,
+  AiEdgeHighlight,
+  AiHighlightLevel,
+  AiPreserveOriginal,
+  AiRepaintConcept,
+  AiShadowLevel,
+  AiVolumeLevel,
+  ColorRole,
+  ComfyImageMode,
+  GeneratedColor,
+  PaintFinish,
+  PaintMixItem,
+} from "../types/workbench";
 import { finishLabels, roleLabels } from "../utils/colors";
 import { formatDate, nowIso } from "../utils/dates";
 import { createId } from "../utils/ids";
+import { generateAiRepaintPrompt } from "../utils/aiRepaintPrompt";
 import {
   formatHsl,
   formatRgb,
@@ -19,7 +35,7 @@ import {
   rgbToHsl,
 } from "../utils/colorMath";
 
-type ColorLabTab = "wheel" | "mix";
+type ColorLabTab = "wheel" | "mix" | "ai";
 
 const roleOrder: ColorRole[] = ["main", "secondary", "accent", "detail", "other"];
 const roleNameToRole: Record<string, ColorRole> = {
@@ -37,6 +53,47 @@ const emptyMixNotes = {
   sprayEffect: "",
   failureIssues: "",
   other: "",
+};
+
+const modelTypeOptions = ["手办", "高达 / 机甲", "汽车模型", "飞机模型", "军模", "零件", "其他"];
+const stylePresetOptions = ["轻度重涂", "动漫风光影", "漫画重阴影", "高对比展示风", "收藏级细腻涂装", "展会摄影风", "旧化战损", "金属质感", "透明件 / 荧光效果"];
+const lightingOptions = ["左上", "右上", "正面", "侧光", "背光"];
+const shadowLevelLabels: Record<AiShadowLevel, string> = { low: "弱", medium: "中", high: "强" };
+const highlightLevelLabels: Record<AiHighlightLevel, string> = { low: "弱", medium: "中", high: "强" };
+const contrastLevelLabels: Record<AiContrastLevel, string> = { natural: "自然", high: "高对比", comic: "漫画感" };
+const volumeLevelLabels: Record<AiVolumeLevel, string> = { natural: "自然", enhanced_body: "强化肌肉和褶皱", enhanced_mecha: "强化机械边缘" };
+const edgeHighlightLabels: Record<AiEdgeHighlight, string> = { none: "无", subtle: "轻微", strong: "明显" };
+const preserveOriginalLabels: Record<AiPreserveOriginal, string> = { strict: "必须保留", slight_beautify: "可轻微美化" };
+const comfyImageModeLabels: Record<ComfyImageMode, string> = { img2img: "img2img", reference_image: "reference image", control_workflow: "control workflow" };
+
+const emptyAiForm = {
+  name: "",
+  projectId: "",
+  sourceImageId: "",
+  modelType: "手办",
+  stylePreset: "动漫风光影",
+  mainColorHex: "#f1eee4",
+  secondaryColorHex: "#1d5fa7",
+  accentColorHex: "#d83b32",
+  shadowColorHex: "#22252b",
+  highlightColorHex: "#fff7e0",
+  lightingDirection: "左上",
+  shadowLevel: "medium" as AiShadowLevel,
+  highlightLevel: "medium" as AiHighlightLevel,
+  contrastLevel: "high" as AiContrastLevel,
+  volumeLevel: "natural" as AiVolumeLevel,
+  edgeHighlight: "subtle" as AiEdgeHighlight,
+  preserveOriginal: "strict" as AiPreserveOriginal,
+  comfyModelType: "SDXL / figure repaint",
+  comfyImageMode: "img2img" as ComfyImageMode,
+  denoiseStrength: "0.35 - 0.55",
+  cfgScale: "5 - 7",
+  steps: "25 - 35",
+  samplerNotes: "DPM++ 2M Karras 或当前工作流常用采样器",
+  seedNotes: "固定 seed 便于比较不同配色",
+  loraNotes: "",
+  controlNetNotes: "使用原图作为 reference / ControlNet 输入，优先保持轮廓、姿势和构图",
+  notes: "",
 };
 
 function colorInfo(hex: string) {
@@ -77,6 +134,8 @@ export function ColorLabPage() {
   const [mixProjectId, setMixProjectId] = useState("");
   const [mixItems, setMixItems] = useState<PaintMixItem[]>(data.paints.slice(0, 2).map((paint, index) => ({ paintId: paint.id, ratioPercent: index === 0 ? 60 : 40 })));
   const [mixNotes, setMixNotes] = useState(emptyMixNotes);
+  const [aiForm, setAiForm] = useState(emptyAiForm);
+  const [copyStatus, setCopyStatus] = useState("");
 
   const selectedPaint = data.paints.find((paint) => paint.id === selectedPaintId);
   const baseHex = normalizeHex(manualHex || selectedPaint?.hex || "#2F6F73");
@@ -92,6 +151,13 @@ export function ColorLabPage() {
   })));
   const resultInfo = colorInfo(resultColorHex);
   const recentExperiments = [...(data.colorLabExperiments ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 12);
+  const aiPrompts = useMemo(() => generateAiRepaintPrompt(aiForm), [aiForm]);
+  const recentAiConcepts = [...(data.aiRepaintConcepts ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 12);
+  const selectedSourceImage = (data.workshopImages ?? []).find((image) => image.id === aiForm.sourceImageId);
+  const experimentColorOptions = (data.colorLabExperiments ?? []).flatMap((experiment) => [
+    ...(experiment.resultColorHex ? [{ label: `${experiment.name} · 结果色`, hex: experiment.resultColorHex }] : []),
+    ...(experiment.generatedColors ?? []).map((color) => ({ label: `${experiment.name} · ${color.role}`, hex: color.hex })),
+  ]);
 
   function updateSelectedPaint(paintId: string) {
     setSelectedPaintId(paintId);
@@ -300,6 +366,127 @@ export function ColorLabPage() {
     setNotice("已保存混色结果为配色方案，并同步保存实验记录。");
   }
 
+  function applySchemeColors(schemeId: string) {
+    const scheme = data.colorSchemes.find((item) => item.id === schemeId);
+    if (!scheme) return;
+    const findHex = (role: ColorRole) => {
+      const color = scheme.colors.find((item) => item.role === role);
+      return color ? data.paints.find((paint) => paint.id === color.paintId)?.hex : undefined;
+    };
+    setAiForm({
+      ...aiForm,
+      mainColorHex: findHex("main") ?? aiForm.mainColorHex,
+      secondaryColorHex: findHex("secondary") ?? aiForm.secondaryColorHex,
+      accentColorHex: findHex("accent") ?? aiForm.accentColorHex,
+    });
+  }
+
+  async function copyPrompt(label: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyStatus(`已复制${label}。`);
+    } catch {
+      setCopyStatus("复制失败，请手动选择文本复制。");
+    }
+  }
+
+  function buildAiConcept(existing?: AiRepaintConcept, resultImageIds = existing?.resultImageIds ?? []): AiRepaintConcept {
+    const timestamp = nowIso();
+    return {
+      id: existing?.id ?? createId("ai-repaint"),
+      name: aiForm.name.trim() || `AI 重涂参考 ${timestampLabel()}`,
+      projectId: aiForm.projectId || undefined,
+      sourceImageId: aiForm.sourceImageId || undefined,
+      resultImageIds,
+      modelType: aiForm.modelType,
+      stylePreset: aiForm.stylePreset,
+      mainColorHex: normalizeHex(aiForm.mainColorHex),
+      secondaryColorHex: normalizeHex(aiForm.secondaryColorHex),
+      accentColorHex: normalizeHex(aiForm.accentColorHex),
+      shadowColorHex: normalizeHex(aiForm.shadowColorHex),
+      highlightColorHex: normalizeHex(aiForm.highlightColorHex),
+      lightingDirection: aiForm.lightingDirection,
+      shadowLevel: aiForm.shadowLevel,
+      highlightLevel: aiForm.highlightLevel,
+      contrastLevel: aiForm.contrastLevel,
+      volumeLevel: aiForm.volumeLevel,
+      edgeHighlight: aiForm.edgeHighlight,
+      preserveOriginal: aiForm.preserveOriginal,
+      comfyModelType: aiForm.comfyModelType,
+      comfyImageMode: aiForm.comfyImageMode,
+      denoiseStrength: aiForm.denoiseStrength,
+      cfgScale: aiForm.cfgScale,
+      steps: aiForm.steps,
+      samplerNotes: aiForm.samplerNotes,
+      seedNotes: aiForm.seedNotes,
+      loraNotes: aiForm.loraNotes,
+      controlNetNotes: aiForm.controlNetNotes,
+      positivePromptZh: aiPrompts.positivePromptZh,
+      negativePromptZh: aiPrompts.negativePromptZh,
+      positivePromptEn: aiPrompts.positivePromptEn,
+      negativePromptEn: aiPrompts.negativePromptEn,
+      comfyPromptEn: aiPrompts.comfyPromptEn,
+      promptZhDescription: aiPrompts.promptZhDescription,
+      notes: aiForm.notes.trim() || undefined,
+      createdAt: existing?.createdAt ?? timestamp,
+      updatedAt: timestamp,
+    };
+  }
+
+  function saveAiConcept() {
+    const concept = buildAiConcept();
+    dispatch({ type: "addAiRepaintConcept", concept });
+    setNotice("已保存 AI 重涂方案。");
+  }
+
+  function attachAiSourceImages(uploaded: UploadedImagePayload[]) {
+    const timestamp = nowIso();
+    const firstId = createId("image");
+    uploaded.forEach((image, index) => {
+      const id = index === 0 ? firstId : createId("image");
+      dispatch({
+        type: "addWorkshopImage",
+        image: {
+          id,
+          projectId: aiForm.projectId || undefined,
+          title: image.title || "AI 重涂原始图",
+          notes: "来源：AI 重涂参考原始图片",
+          capturedAt: "",
+          ...image,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      });
+    });
+    setAiForm({ ...aiForm, sourceImageId: firstId });
+    setNotice("已上传原始图片，并选为 AI 重涂参考原图。");
+  }
+
+  function attachAiResultImages(concept: AiRepaintConcept, uploaded: UploadedImagePayload[]) {
+    const timestamp = nowIso();
+    const ids = uploaded.map(() => createId("image"));
+    uploaded.forEach((image, index) => {
+      dispatch({
+        type: "addWorkshopImage",
+        image: {
+          id: ids[index],
+          projectId: concept.projectId,
+          title: image.title || "AI 重涂结果图",
+          notes: `来源：AI 重涂参考方案 ${concept.name}`,
+          capturedAt: "",
+          ...image,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      });
+    });
+    dispatch({
+      type: "updateAiRepaintConcept",
+      concept: { ...concept, resultImageIds: [...ids, ...concept.resultImageIds], updatedAt: timestamp },
+    });
+    setNotice("已上传 AI 结果图并关联到方案。");
+  }
+
   return (
     <>
       <PageHeader title="配色实验室" description="用色轮生成配色建议，用颜料比例记录预估混色结果。" />
@@ -307,6 +494,7 @@ export function ColorLabPage() {
         <div className="tab-row">
           <button className={`tab-button ${activeTab === "wheel" ? "active" : ""}`} type="button" onClick={() => setActiveTab("wheel")}>色轮</button>
           <button className={`tab-button ${activeTab === "mix" ? "active" : ""}`} type="button" onClick={() => setActiveTab("mix")}>颜料混色</button>
+          <button className={`tab-button ${activeTab === "ai" ? "active" : ""}`} type="button" onClick={() => setActiveTab("ai")}>AI 重涂参考</button>
         </div>
       </section>
 
@@ -372,7 +560,7 @@ export function ColorLabPage() {
             </div>
           </div>
         </section>
-      ) : (
+      ) : activeTab === "mix" ? (
         <section className="color-lab-layout">
           <div className="panel form-panel">
             <h2>颜料混色实验</h2>
@@ -447,6 +635,220 @@ export function ColorLabPage() {
               <button className="button ghost" type="button" onClick={saveMixAsScheme}>保存为配色方案</button>
             </div>
           </div>
+        </section>
+      ) : (
+        <section className="ai-repaint-stack">
+          <div className="panel ai-info-panel">
+            <h2>AI 重涂参考</h2>
+            <p>推荐使用 ComfyUI 作为重涂参考图生成工具。Stable Diffusion / SDXL / 其他模型作为 ComfyUI 内部模型使用。本网站不直接生图，只负责生成提示词、保存参数和归档结果图。</p>
+            <p className="error-text">当前网站部署在 GitHub Pages，是纯静态前端。请不要把任何 AI API Key 写入前端代码。如需真正内置 AI 生图，未来需要后端代理、本地模型，或继续使用外部 AI 工具手动生成。</p>
+          </div>
+
+          <section className="color-lab-layout">
+            <div className="panel form-panel">
+              <h2>原始图片与项目</h2>
+              <Field label="方案名称"><input value={aiForm.name} onChange={(event) => setAiForm({ ...aiForm, name: event.target.value })} placeholder="例如 RX-78 动漫风重涂参考" /></Field>
+              <Field label="关联项目">
+                <select value={aiForm.projectId} onChange={(event) => setAiForm({ ...aiForm, projectId: event.target.value })}>
+                  <option value="">不关联项目</option>
+                  {(data.projects ?? []).map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                </select>
+              </Field>
+              <Field label="原始图片">
+                <select value={aiForm.sourceImageId} onChange={(event) => setAiForm({ ...aiForm, sourceImageId: event.target.value })}>
+                  <option value="">请选择图片档案</option>
+                  {(data.workshopImages ?? []).map((image) => <option key={image.id} value={image.id}>{image.title || "未命名图片"} · {image.storageType ?? "dataUrl"}</option>)}
+                </select>
+              </Field>
+              {selectedSourceImage ? (
+                <div className="ai-image-card">
+                  <WorkshopImageView image={selectedSourceImage} alt={selectedSourceImage.title || "AI 重涂原始图"} />
+                  <span>{selectedSourceImage.title || "原始图片"}</span>
+                </div>
+              ) : <p className="muted">请选择或上传一张原始模型图片。</p>}
+              <ImageUploader label="上传新原始图片" fileNamePrefix="ai-source" onUpload={attachAiSourceImages} />
+
+              <h2>重涂方向</h2>
+              <div className="form-grid">
+                <Field label="模型类型">
+                  <select value={aiForm.modelType} onChange={(event) => setAiForm({ ...aiForm, modelType: event.target.value })}>
+                    {modelTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </Field>
+                <Field label="目标风格">
+                  <select value={aiForm.stylePreset} onChange={(event) => setAiForm({ ...aiForm, stylePreset: event.target.value })}>
+                    {stylePresetOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </Field>
+              </div>
+              <Field label="从配色方案快速套用">
+                <select value="" onChange={(event) => applySchemeColors(event.target.value)}>
+                  <option value="">选择配色方案</option>
+                  {data.colorSchemes.map((scheme) => <option key={scheme.id} value={scheme.id}>{scheme.name}</option>)}
+                </select>
+              </Field>
+              <div className="form-grid">
+                {[
+                  ["主色", "mainColorHex"],
+                  ["辅色", "secondaryColorHex"],
+                  ["点缀色", "accentColorHex"],
+                  ["阴影色", "shadowColorHex"],
+                  ["高光色", "highlightColorHex"],
+                ].map(([label, key]) => (
+                  <Field key={key} label={label}>
+                    <input type="color" value={normalizeHex(String(aiForm[key as keyof typeof aiForm] ?? "#808080"))} onChange={(event) => setAiForm({ ...aiForm, [key]: event.target.value })} />
+                    <input value={String(aiForm[key as keyof typeof aiForm] ?? "")} onChange={(event) => setAiForm({ ...aiForm, [key]: event.target.value })} />
+                  </Field>
+                ))}
+              </div>
+              <Field label="从颜色库 / 实验结果选择候选色">
+                <select value="" onChange={(event) => event.target.value && setAiForm({ ...aiForm, accentColorHex: event.target.value })}>
+                  <option value="">选择后填入点缀色</option>
+                  {data.paints.map((paint) => <option key={paint.id} value={paint.hex}>{paint.name} · {paint.hex}</option>)}
+                  {experimentColorOptions.map((item, index) => <option key={`${item.hex}-${index}`} value={item.hex}>{item.label} · {item.hex}</option>)}
+                </select>
+              </Field>
+
+              <h2>光影方向</h2>
+              <div className="form-grid">
+                <Field label="光源方向">
+                  <select value={aiForm.lightingDirection} onChange={(event) => setAiForm({ ...aiForm, lightingDirection: event.target.value })}>
+                    {lightingOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </Field>
+                <Field label="阴影强度">
+                  <select value={aiForm.shadowLevel} onChange={(event) => setAiForm({ ...aiForm, shadowLevel: event.target.value as AiShadowLevel })}>
+                    {Object.entries(shadowLevelLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </Field>
+                <Field label="高光强度">
+                  <select value={aiForm.highlightLevel} onChange={(event) => setAiForm({ ...aiForm, highlightLevel: event.target.value as AiHighlightLevel })}>
+                    {Object.entries(highlightLevelLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </Field>
+                <Field label="对比度">
+                  <select value={aiForm.contrastLevel} onChange={(event) => setAiForm({ ...aiForm, contrastLevel: event.target.value as AiContrastLevel })}>
+                    {Object.entries(contrastLevelLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </Field>
+                <Field label="体积感">
+                  <select value={aiForm.volumeLevel} onChange={(event) => setAiForm({ ...aiForm, volumeLevel: event.target.value as AiVolumeLevel })}>
+                    {Object.entries(volumeLevelLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </Field>
+                <Field label="边缘高光">
+                  <select value={aiForm.edgeHighlight} onChange={(event) => setAiForm({ ...aiForm, edgeHighlight: event.target.value as AiEdgeHighlight })}>
+                    {Object.entries(edgeHighlightLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </Field>
+                <Field label="保留原造型">
+                  <select value={aiForm.preserveOriginal} onChange={(event) => setAiForm({ ...aiForm, preserveOriginal: event.target.value as AiPreserveOriginal })}>
+                    {Object.entries(preserveOriginalLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </Field>
+              </div>
+
+              <h2>ComfyUI 参数</h2>
+              <div className="form-grid">
+                <Field label="推荐模型类型"><input value={aiForm.comfyModelType} onChange={(event) => setAiForm({ ...aiForm, comfyModelType: event.target.value })} /></Field>
+                <Field label="图像模式">
+                  <select value={aiForm.comfyImageMode} onChange={(event) => setAiForm({ ...aiForm, comfyImageMode: event.target.value as ComfyImageMode })}>
+                    {Object.entries(comfyImageModeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </Field>
+                <Field label="denoise strength"><input value={aiForm.denoiseStrength} onChange={(event) => setAiForm({ ...aiForm, denoiseStrength: event.target.value })} /></Field>
+                <Field label="CFG scale"><input value={aiForm.cfgScale} onChange={(event) => setAiForm({ ...aiForm, cfgScale: event.target.value })} /></Field>
+                <Field label="steps"><input value={aiForm.steps} onChange={(event) => setAiForm({ ...aiForm, steps: event.target.value })} /></Field>
+                <Field label="sampler 备注"><input value={aiForm.samplerNotes} onChange={(event) => setAiForm({ ...aiForm, samplerNotes: event.target.value })} /></Field>
+              </div>
+              <Field label="seed 备注"><input value={aiForm.seedNotes} onChange={(event) => setAiForm({ ...aiForm, seedNotes: event.target.value })} /></Field>
+              <Field label="LoRA 备注"><input value={aiForm.loraNotes} onChange={(event) => setAiForm({ ...aiForm, loraNotes: event.target.value })} /></Field>
+              <Field label="ControlNet / reference 备注"><textarea value={aiForm.controlNetNotes} onChange={(event) => setAiForm({ ...aiForm, controlNetNotes: event.target.value })} /></Field>
+              <Field label="补充备注"><textarea value={aiForm.notes} onChange={(event) => setAiForm({ ...aiForm, notes: event.target.value })} /></Field>
+              <button className="button primary" type="button" onClick={saveAiConcept}>保存当前 AI 重涂方案</button>
+            </div>
+
+            <div className="panel">
+              <h2>提示词输出</h2>
+              {copyStatus && <p className="muted">{copyStatus}</p>}
+              <div className="prompt-panel-list">
+                {[
+                  ["通用英文提示词", aiPrompts.positivePromptEn, "通用英文提示词"],
+                  ["ComfyUI 推荐提示词", aiPrompts.comfyPromptEn, "ComfyUI 推荐提示词"],
+                  ["中文说明", aiPrompts.promptZhDescription, "中文说明"],
+                  ["负向提示词", `${aiPrompts.negativePromptZh}\n\n${aiPrompts.negativePromptEn}`, "负向提示词"],
+                ].map(([title, text, label]) => (
+                  <article className="prompt-panel" key={title}>
+                    <div className="card-top">
+                      <strong>{title}</strong>
+                      <button className="button ghost" type="button" onClick={() => copyPrompt(label, text)}>复制</button>
+                    </div>
+                    <pre>{text}</pre>
+                  </article>
+                ))}
+              </div>
+              <details className="prompt-details">
+                <summary>展开中文正向 / 英文正向 / 中英文负向提示词</summary>
+                <div className="prompt-panel-list">
+                  {[
+                    ["中文正向提示词", aiPrompts.positivePromptZh, "中文正向提示词"],
+                    ["英文正向提示词", aiPrompts.positivePromptEn, "英文正向提示词"],
+                    ["中文负向提示词", aiPrompts.negativePromptZh, "中文负向提示词"],
+                    ["英文负向提示词", aiPrompts.negativePromptEn, "英文负向提示词"],
+                  ].map(([title, text, label]) => (
+                    <article className="prompt-panel" key={title}>
+                      <div className="card-top">
+                        <strong>{title}</strong>
+                        <button className="button ghost" type="button" onClick={() => copyPrompt(label, text)}>复制</button>
+                      </div>
+                      <pre>{text}</pre>
+                    </article>
+                  ))}
+                </div>
+              </details>
+            </div>
+          </section>
+
+          <section className="panel">
+            <h2>最近 AI 重涂方案</h2>
+            {recentAiConcepts.length === 0 ? <EmptyState title="还没有 AI 重涂方案" description="保存方案后，可以上传 ComfyUI 或其他 AI 工具生成的结果图。" /> : (
+              <div className="item-list">
+                {recentAiConcepts.map((concept) => {
+                  const project = (data.projects ?? []).find((item) => item.id === concept.projectId);
+                  const sourceImage = (data.workshopImages ?? []).find((image) => image.id === concept.sourceImageId);
+                  const resultImages = (data.workshopImages ?? []).filter((image) => concept.resultImageIds.includes(image.id));
+                  return (
+                    <article className="list-card ai-concept-card" key={concept.id}>
+                      <div className="card-top">
+                        <strong>{concept.name}</strong>
+                        <span className="badge">{concept.comfyImageMode ?? "img2img"}</span>
+                      </div>
+                      <span>关联项目：{project?.name ?? "未关联"} · 目标风格：{concept.stylePreset ?? "未填写"}</span>
+                      <small>创建时间：{formatDate(concept.createdAt)}</small>
+                      <div className="ai-compare-grid">
+                        <div>
+                          <strong>原图</strong>
+                          {sourceImage ? <WorkshopImageView image={sourceImage} alt={`${concept.name} 原图`} /> : <p className="muted">未选择原图</p>}
+                        </div>
+                        <div>
+                          <strong>AI 结果图</strong>
+                          {resultImages.length > 0 ? <div className="ai-result-grid">{resultImages.map((image) => <WorkshopImageView key={image.id} image={image} alt={image.title || "AI 结果图"} />)}</div> : <p className="muted">暂无结果图</p>}
+                        </div>
+                      </div>
+                      <details className="prompt-details">
+                        <summary>查看提示词、ComfyUI 参数和备注</summary>
+                        <pre className="compact-pre">{concept.comfyPromptEn}</pre>
+                        <p className="muted">模型：{concept.comfyModelType || "未填写"} · denoise：{concept.denoiseStrength || "未填写"} · CFG：{concept.cfgScale || "未填写"} · steps：{concept.steps || "未填写"}</p>
+                        <p>{concept.notes || "暂无备注"}</p>
+                      </details>
+                      <ImageUploader label="上传 AI 结果图" fileNamePrefix={`ai-result-${concept.id}`} onUpload={(uploaded) => attachAiResultImages(concept, uploaded)} />
+                      <ConfirmDelete onConfirm={() => dispatch({ type: "deleteAiRepaintConcept", id: concept.id })} />
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         </section>
       )}
 

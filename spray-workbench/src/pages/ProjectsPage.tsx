@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ConfirmDelete } from "../components/ui/ConfirmDelete";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Field } from "../components/ui/Field";
-import { ImageGallery } from "../components/ui/ImageGallery";
+import { ImageGallery, WorkshopImageView } from "../components/ui/ImageGallery";
 import { ImageUploader, type UploadedImagePayload } from "../components/ui/ImageUploader";
 import { PageHeader } from "../components/ui/PageHeader";
 import { useWorkbench } from "../state/WorkbenchProvider";
@@ -165,6 +165,7 @@ export function ProjectsPage() {
               {projects.map((project) => {
                 const model = data.models.find((item) => item.id === project.modelId);
                 const projectImages = images.filter((image) => image.projectId === project.id || project.imageIds.includes(image.id));
+                const aiConcepts = (data.aiRepaintConcepts ?? []).filter((concept) => concept.projectId === project.id);
                 return (
                   <article className="list-card project-card" key={project.id}>
                     <div className="card-top"><strong>{project.name}</strong><span className="badge">{projectStatusLabels[project.status]}</span></div>
@@ -181,6 +182,28 @@ export function ProjectsPage() {
                       onDelete={(id) => dispatch({ type: "deleteWorkshopImage", id })}
                     />
                     <ImageUploader label="插入项目图片" fileNamePrefix={`project-${project.id}`} onUpload={(uploaded) => attachProjectImages(project, uploaded)} />
+                    <h3>AI 重涂参考</h3>
+                    {aiConcepts.length === 0 ? <p className="muted">暂无关联的 AI 重涂参考。</p> : (
+                      <div className="ai-project-summary-list">
+                        {aiConcepts.slice(0, 4).map((concept) => {
+                          const sourceImage = images.find((image) => image.id === concept.sourceImageId);
+                          const resultImage = images.find((image) => concept.resultImageIds.includes(image.id));
+                          return (
+                            <article className="ai-project-summary" key={concept.id}>
+                              <div className="card-top">
+                                <strong>{concept.name}</strong>
+                                <span className="badge">{concept.comfyImageMode ?? "img2img"}</span>
+                              </div>
+                              <span>{concept.stylePreset || "未填写风格"} · {formatDate(concept.createdAt)}</span>
+                              <div className="ai-project-images">
+                                {sourceImage ? <WorkshopImageView image={sourceImage} alt={`${concept.name} 原图`} /> : <div className="image-fallback">未选择原图</div>}
+                                {resultImage ? <WorkshopImageView image={resultImage} alt={`${concept.name} 结果图`} /> : <div className="image-fallback">暂无结果图</div>}
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    )}
                     <h3>时间轴摘要</h3>
                     <div className="timeline-list">
                       {buildTimeline(project, projectImages.length).map((event, index) => <span key={`${project.id}-${index}`}>{formatDate(event.date)} · {event.title}</span>)}

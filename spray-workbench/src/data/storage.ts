@@ -35,6 +35,7 @@ export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
     }),
     parameterTemplates: data.parameterTemplates?.length ? data.parameterTemplates : sprayStepTemplates,
     colorLabExperiments: data.colorLabExperiments ?? [],
+    aiRepaintConcepts: data.aiRepaintConcepts ?? [],
   };
 }
 

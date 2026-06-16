@@ -8,6 +8,13 @@ const roleSchema = z.enum(["main", "secondary", "accent", "detail", "other"]);
 const projectStatusSchema = z.enum(["planned", "in_progress", "painting", "reviewing", "finished", "archived"]);
 const imageStorageTypeSchema = z.enum(["dataUrl", "localFile", "remoteUrl"]);
 const colorLabExperimentTypeSchema = z.enum(["color_harmony", "paint_mix"]);
+const aiShadowLevelSchema = z.enum(["low", "medium", "high"]);
+const aiHighlightLevelSchema = z.enum(["low", "medium", "high"]);
+const aiContrastLevelSchema = z.enum(["natural", "high", "comic"]);
+const aiVolumeLevelSchema = z.enum(["natural", "enhanced_body", "enhanced_mecha"]);
+const aiEdgeHighlightSchema = z.enum(["none", "subtle", "strong"]);
+const aiPreserveOriginalSchema = z.enum(["strict", "slight_beautify"]);
+const comfyImageModeSchema = z.enum(["img2img", "reference_image", "control_workflow"]);
 
 const stepTemplateSchema = z.object({
   id: z.string().min(1),
@@ -140,6 +147,45 @@ export const workbenchDataSchema = z.object({
       hsl: z.string(),
       notes: z.string().optional(),
     })).optional(),
+    notes: z.string().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })).optional(),
+  aiRepaintConcepts: z.array(z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    projectId: z.string().optional(),
+    sourceImageId: z.string().optional(),
+    resultImageIds: z.array(z.string()),
+    modelType: z.string().optional(),
+    stylePreset: z.string().optional(),
+    mainColorHex: z.string().optional(),
+    secondaryColorHex: z.string().optional(),
+    accentColorHex: z.string().optional(),
+    shadowColorHex: z.string().optional(),
+    highlightColorHex: z.string().optional(),
+    lightingDirection: z.string().optional(),
+    shadowLevel: aiShadowLevelSchema.optional(),
+    highlightLevel: aiHighlightLevelSchema.optional(),
+    contrastLevel: aiContrastLevelSchema.optional(),
+    volumeLevel: aiVolumeLevelSchema.optional(),
+    edgeHighlight: aiEdgeHighlightSchema.optional(),
+    preserveOriginal: aiPreserveOriginalSchema.optional(),
+    comfyModelType: z.string().optional(),
+    comfyImageMode: comfyImageModeSchema.optional(),
+    denoiseStrength: z.string().optional(),
+    cfgScale: z.string().optional(),
+    steps: z.string().optional(),
+    samplerNotes: z.string().optional(),
+    seedNotes: z.string().optional(),
+    loraNotes: z.string().optional(),
+    controlNetNotes: z.string().optional(),
+    positivePromptZh: z.string(),
+    negativePromptZh: z.string(),
+    positivePromptEn: z.string(),
+    negativePromptEn: z.string(),
+    comfyPromptEn: z.string(),
+    promptZhDescription: z.string(),
     notes: z.string().optional(),
     createdAt: z.string(),
     updatedAt: z.string(),
