@@ -62,6 +62,7 @@ export interface ColorSchemeColor {
   paintId: string;
   role: ColorRole;
   layerType?: PaintLayerType;
+  percentage?: number;
   ratio?: string;
   notes?: string;
 }

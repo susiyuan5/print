@@ -12,6 +12,7 @@ export const sampleData: WorkbenchData = {
       scale: "1/144",
       status: "in_progress",
       tags: ["机甲", "白蓝红", "练习件"],
+      imageUrl: "https://images.unsplash.com/photo-1631373339959-a45900447f71?auto=format&fit=crop&w=1200&q=80",
       notes: "计划尝试低饱和白色和轻微旧化。",
       createdAt: "2026-06-16T00:00:00.000Z",
       updatedAt: "2026-06-16T00:00:00.000Z"
@@ -23,6 +24,7 @@ export const sampleData: WorkbenchData = {
       scale: "1/24",
       status: "planned",
       tags: ["车辆", "亮面"],
+      imageUrl: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
       notes: "用于测试清漆和抛光流程。",
       createdAt: "2026-06-16T00:00:00.000Z",
       updatedAt: "2026-06-16T00:00:00.000Z"
@@ -42,9 +44,9 @@ export const sampleData: WorkbenchData = {
       modelIds: ["model_rx78"],
       tags: ["机甲", "经典", "低饱和"],
       colors: [
-        { paintId: "paint_warm_white", role: "main", layerType: "base", ratio: "原液", notes: "外甲大面积主色。" },
-        { paintId: "paint_signal_blue", role: "secondary", layerType: "base", notes: "胸部和脚部。" },
-        { paintId: "paint_vivid_red", role: "accent", layerType: "detail", notes: "下巴、盾牌和小面积强调。" }
+        { paintId: "paint_warm_white", role: "main", layerType: "base", percentage: 70, ratio: "原液", notes: "外甲大面积主色。" },
+        { paintId: "paint_signal_blue", role: "secondary", layerType: "base", percentage: 20, notes: "胸部和脚部。" },
+        { paintId: "paint_vivid_red", role: "accent", layerType: "detail", percentage: 10, notes: "下巴、盾牌和小面积强调。" }
       ],
       createdAt: "2026-06-16T00:00:00.000Z",
       updatedAt: "2026-06-16T00:00:00.000Z"
@@ -56,11 +58,11 @@ export const sampleData: WorkbenchData = {
       modelId: "model_rx78",
       title: "外甲底漆和主白测试",
       date: "2026-06-16",
-      imageUrls: [],
+      imageUrls: ["https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?auto=format&fit=crop&w=1200&q=80"],
       resultNotes: "暖白遮盖力足够，下一次需要把蓝色区域边界遮盖得更干净。",
       steps: [
-        { id: "step_primer", layerType: "primer", paintIds: ["paint_frame_gray"], title: "灰色底漆", thinner: "1:1.5", pressure: "18 PSI", technique: "薄喷两层", notes: "检查表面瑕疵。" },
-        { id: "step_white", layerType: "base", paintIds: ["paint_warm_white"], title: "暖白主色", thinner: "1:1.2", pressure: "16 PSI", technique: "湿喷收面", notes: "保留轻微明度变化。" }
+        { id: "step_primer", layerType: "primer", paintIds: ["paint_frame_gray"], title: "灰色底漆", ratio: "1:1.5", thinner: "标准稀释剂", pressure: "18 PSI", technique: "薄喷两层", notes: "检查表面瑕疵。" },
+        { id: "step_white", layerType: "base", paintIds: ["paint_warm_white"], title: "暖白主色", ratio: "1:1.2", thinner: "缓干稀释剂", pressure: "16 PSI", technique: "湿喷收面", notes: "保留轻微明度变化。" }
       ],
       createdAt: "2026-06-16T00:00:00.000Z",
       updatedAt: "2026-06-16T00:00:00.000Z"

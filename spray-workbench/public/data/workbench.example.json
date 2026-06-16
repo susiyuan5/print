@@ -10,6 +10,7 @@
       "scale": "1/144",
       "status": "in_progress",
       "tags": ["机甲", "白蓝红", "练习件"],
+      "imageUrl": "https://images.unsplash.com/photo-1631373339959-a45900447f71?auto=format&fit=crop&w=1200&q=80",
       "notes": "计划尝试低饱和白色和轻微旧化。",
       "createdAt": "2026-06-16T00:00:00.000Z",
       "updatedAt": "2026-06-16T00:00:00.000Z"
@@ -28,9 +29,9 @@
       "modelIds": ["model_rx78"],
       "tags": ["机甲", "经典", "低饱和"],
       "colors": [
-        { "paintId": "paint_warm_white", "role": "main", "layerType": "base", "ratio": "原液", "notes": "外甲大面积主色。" },
-        { "paintId": "paint_signal_blue", "role": "secondary", "layerType": "base", "notes": "胸部和脚部。" },
-        { "paintId": "paint_vivid_red", "role": "accent", "layerType": "detail", "notes": "下巴、盾牌和小面积强调。" }
+        { "paintId": "paint_warm_white", "role": "main", "layerType": "base", "percentage": 70, "ratio": "原液", "notes": "外甲大面积主色。" },
+        { "paintId": "paint_signal_blue", "role": "secondary", "layerType": "base", "percentage": 20, "notes": "胸部和脚部。" },
+        { "paintId": "paint_vivid_red", "role": "accent", "layerType": "detail", "percentage": 10, "notes": "下巴、盾牌和小面积强调。" }
       ],
       "createdAt": "2026-06-16T00:00:00.000Z",
       "updatedAt": "2026-06-16T00:00:00.000Z"

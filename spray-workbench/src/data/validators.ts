@@ -39,6 +39,7 @@ export const workbenchDataSchema = z.object({
       paintId: z.string(),
       role: roleSchema,
       layerType: layerSchema.optional(),
+      percentage: z.number().min(0).max(100).optional(),
       ratio: z.string().optional(),
       notes: z.string().optional(),
     })),
