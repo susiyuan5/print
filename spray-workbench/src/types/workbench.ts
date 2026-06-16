@@ -13,6 +13,7 @@ export type PaintLayerType =
 export type PaintFinish = "matte" | "satin" | "gloss" | "metallic" | "transparent" | "other";
 export type ColorRole = "main" | "secondary" | "accent" | "detail" | "other";
 export type PreviewShape = "car" | "aircraft" | "robot" | "part";
+export type ProjectStatus = "planned" | "in_progress" | "painting" | "reviewing" | "finished" | "archived";
 
 export interface WorkbenchData {
   version: 1;
@@ -20,7 +21,54 @@ export interface WorkbenchData {
   paints: PaintColor[];
   colorSchemes: ColorScheme[];
   sprayLogs: SprayLog[];
+  projects?: SprayProject[];
+  workshopImages?: WorkshopImage[];
+  parameterTemplates?: SprayStepTemplate[];
   updatedAt: string;
+}
+
+export interface SprayProject {
+  id: string;
+  name: string;
+  modelId?: string;
+  status: ProjectStatus;
+  goal?: string;
+  styleKeywords: string[];
+  colorSchemeIds: string[];
+  sprayLogIds: string[];
+  imageIds: string[];
+  startedAt?: string;
+  finishedAt?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkshopImage {
+  id: string;
+  projectId?: string;
+  modelId?: string;
+  sprayLogId?: string;
+  title?: string;
+  dataUrl: string;
+  mimeType: string;
+  width: number;
+  height: number;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export interface SprayStepTemplate {
+  id: string;
+  name: string;
+  layerType: PaintLayerType;
+  ratio: string;
+  thinner: string;
+  pressure: string;
+  technique: string;
+  notes: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ScaleModel {

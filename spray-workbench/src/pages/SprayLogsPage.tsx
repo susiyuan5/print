@@ -4,7 +4,6 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { Field } from "../components/ui/Field";
 import { ImagePreview } from "../components/ui/ImagePreview";
 import { PageHeader } from "../components/ui/PageHeader";
-import { sprayStepTemplates } from "../data/stepTemplates";
 import { useWorkbench } from "../state/WorkbenchProvider";
 import type { PaintLayerType, SprayLog } from "../types/workbench";
 import { layerLabels } from "../utils/colors";
@@ -79,7 +78,7 @@ export function SprayLogsPage() {
   }
 
   function applyTemplate(index: number, templateId: string) {
-    const template = sprayStepTemplates.find((item) => item.id === templateId);
+    const template = (data.parameterTemplates ?? []).find((item) => item.id === templateId);
     if (!template) return;
     updateStep(index, {
       title: template.name,
@@ -188,7 +187,7 @@ export function SprayLogsPage() {
                 <Field label="套用参数模板">
                   <select value="" onChange={(e) => applyTemplate(index, e.target.value)}>
                     <option value="">选择模板</option>
-                    {sprayStepTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+                    {(data.parameterTemplates ?? []).map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
                   </select>
                 </Field>
                 <div className="form-grid">

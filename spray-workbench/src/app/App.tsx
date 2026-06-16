@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes } from "react-router-dom";
-import { Boxes, Brush, Database, Gauge, Layers3, Palette, SwatchBook } from "lucide-react";
+import { Boxes, Briefcase, Brush, Database, Gauge, Layers3, Palette, SwatchBook } from "lucide-react";
 import { DashboardPage } from "../pages/DashboardPage";
+import { ProjectsPage } from "../pages/ProjectsPage";
 import { ModelsPage } from "../pages/ModelsPage";
 import { ColorsPage } from "../pages/ColorsPage";
 import { ColorSchemesPage } from "../pages/ColorSchemesPage";
@@ -11,6 +12,7 @@ import { useWorkbench } from "../state/WorkbenchProvider";
 
 const navItems = [
   { to: "/", label: "仪表盘", icon: Gauge },
+  { to: "/projects", label: "项目中心", icon: Briefcase },
   { to: "/models", label: "模型管理", icon: Boxes },
   { to: "/colors", label: "颜色管理", icon: Palette },
   { to: "/schemes", label: "配色方案", icon: SwatchBook },
@@ -53,6 +55,7 @@ export function App() {
         )}
         <Routes>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/models" element={<ModelsPage />} />
           <Route path="/colors" element={<ColorsPage />} />
           <Route path="/schemes" element={<ColorSchemesPage />} />

@@ -1,4 +1,5 @@
 import { sampleData } from "./sampleData";
+import { sprayStepTemplates } from "./stepTemplates";
 import { parseWorkbenchData } from "./validators";
 import type { WorkbenchData } from "../types/workbench";
 
@@ -12,15 +13,24 @@ export interface LoadedData {
   warning?: string;
 }
 
+export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
+  return {
+    ...data,
+    projects: data.projects ?? [],
+    workshopImages: data.workshopImages ?? [],
+    parameterTemplates: data.parameterTemplates?.length ? data.parameterTemplates : sprayStepTemplates,
+  };
+}
+
 export function loadData(): LoadedData {
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return { data: sampleData, source: "sample" };
+  if (!raw) return { data: normalizeWorkbenchData(sampleData), source: "sample" };
 
   try {
-    return { data: parseWorkbenchData(JSON.parse(raw)), source: "localStorage" };
+    return { data: normalizeWorkbenchData(parseWorkbenchData(JSON.parse(raw))), source: "localStorage" };
   } catch {
     return {
-      data: sampleData,
+      data: normalizeWorkbenchData(sampleData),
       source: "sample",
       warning: "本地保存的数据无法读取，已加载示例数据。",
     };
@@ -28,20 +38,21 @@ export function loadData(): LoadedData {
 }
 
 export function saveData(data: WorkbenchData) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data, null, 2));
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeWorkbenchData(data), null, 2));
 }
 
 export function resetData() {
-  saveData(sampleData);
-  return sampleData;
+  const data = normalizeWorkbenchData(sampleData);
+  saveData(data);
+  return data;
 }
 
 export function downloadJson(data: WorkbenchData) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(normalizeWorkbenchData(data), null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `spray-workbench-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `spray-digital-workshop-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
 }

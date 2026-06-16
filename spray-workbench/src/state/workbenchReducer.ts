@@ -1,4 +1,13 @@
-import type { ColorScheme, PaintColor, ScaleModel, SprayLog, WorkbenchData } from "../types/workbench";
+import type {
+  ColorScheme,
+  PaintColor,
+  ScaleModel,
+  SprayLog,
+  SprayProject,
+  SprayStepTemplate,
+  WorkbenchData,
+  WorkshopImage,
+} from "../types/workbench";
 import { nowIso } from "../utils/dates";
 
 export type WorkbenchAction =
@@ -10,7 +19,13 @@ export type WorkbenchAction =
   | { type: "upsertScheme"; scheme: ColorScheme }
   | { type: "deleteScheme"; id: string }
   | { type: "upsertLog"; log: SprayLog }
-  | { type: "deleteLog"; id: string };
+  | { type: "deleteLog"; id: string }
+  | { type: "upsertProject"; project: SprayProject }
+  | { type: "deleteProject"; id: string }
+  | { type: "addWorkshopImage"; image: WorkshopImage }
+  | { type: "deleteWorkshopImage"; id: string }
+  | { type: "upsertTemplate"; template: SprayStepTemplate }
+  | { type: "deleteTemplate"; id: string };
 
 function touch(data: WorkbenchData): WorkbenchData {
   return { ...data, updatedAt: nowIso() };
@@ -36,6 +51,8 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
           ...scheme,
           modelIds: scheme.modelIds.filter((modelId) => modelId !== action.id),
         })),
+        projects: (data.projects ?? []).map((project) => project.modelId === action.id ? { ...project, modelId: undefined } : project),
+        workshopImages: (data.workshopImages ?? []).map((image) => image.modelId === action.id ? { ...image, modelId: undefined } : image),
       });
     case "upsertPaint":
       return touch({
@@ -68,7 +85,14 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
           : [action.scheme, ...data.colorSchemes],
       });
     case "deleteScheme":
-      return touch({ ...data, colorSchemes: data.colorSchemes.filter((item) => item.id !== action.id) });
+      return touch({
+        ...data,
+        colorSchemes: data.colorSchemes.filter((item) => item.id !== action.id),
+        projects: (data.projects ?? []).map((project) => ({
+          ...project,
+          colorSchemeIds: project.colorSchemeIds.filter((id) => id !== action.id),
+        })),
+      });
     case "upsertLog":
       return touch({
         ...data,
@@ -77,7 +101,48 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
           : [action.log, ...data.sprayLogs],
       });
     case "deleteLog":
-      return touch({ ...data, sprayLogs: data.sprayLogs.filter((item) => item.id !== action.id) });
+      return touch({
+        ...data,
+        sprayLogs: data.sprayLogs.filter((item) => item.id !== action.id),
+        projects: (data.projects ?? []).map((project) => ({
+          ...project,
+          sprayLogIds: project.sprayLogIds.filter((id) => id !== action.id),
+        })),
+        workshopImages: (data.workshopImages ?? []).map((image) => image.sprayLogId === action.id ? { ...image, sprayLogId: undefined } : image),
+      });
+    case "upsertProject":
+      return touch({
+        ...data,
+        projects: (data.projects ?? []).some((item) => item.id === action.project.id)
+          ? (data.projects ?? []).map((item) => (item.id === action.project.id ? action.project : item))
+          : [action.project, ...(data.projects ?? [])],
+      });
+    case "deleteProject":
+      return touch({
+        ...data,
+        projects: (data.projects ?? []).filter((item) => item.id !== action.id),
+        workshopImages: (data.workshopImages ?? []).map((image) => image.projectId === action.id ? { ...image, projectId: undefined } : image),
+      });
+    case "addWorkshopImage":
+      return touch({ ...data, workshopImages: [action.image, ...(data.workshopImages ?? [])] });
+    case "deleteWorkshopImage":
+      return touch({
+        ...data,
+        workshopImages: (data.workshopImages ?? []).filter((item) => item.id !== action.id),
+        projects: (data.projects ?? []).map((project) => ({
+          ...project,
+          imageIds: project.imageIds.filter((id) => id !== action.id),
+        })),
+      });
+    case "upsertTemplate":
+      return touch({
+        ...data,
+        parameterTemplates: (data.parameterTemplates ?? []).some((item) => item.id === action.template.id)
+          ? (data.parameterTemplates ?? []).map((item) => (item.id === action.template.id ? action.template : item))
+          : [action.template, ...(data.parameterTemplates ?? [])],
+      });
+    case "deleteTemplate":
+      return touch({ ...data, parameterTemplates: (data.parameterTemplates ?? []).filter((item) => item.id !== action.id) });
     default:
       return data;
   }

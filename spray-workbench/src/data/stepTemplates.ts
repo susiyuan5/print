@@ -1,15 +1,4 @@
-import type { PaintLayerType } from "../types/workbench";
-
-export interface SprayStepTemplate {
-  id: string;
-  name: string;
-  layerType: PaintLayerType;
-  ratio: string;
-  thinner: string;
-  pressure: string;
-  technique: string;
-  notes: string;
-}
+import type { SprayStepTemplate } from "../types/workbench";
 
 export const sprayStepTemplates: SprayStepTemplate[] = [
   {

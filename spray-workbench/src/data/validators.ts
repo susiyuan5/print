@@ -5,6 +5,20 @@ const modelStatusSchema = z.enum(["planned", "in_progress", "painted", "finished
 const layerSchema = z.enum(["primer", "base", "shade", "highlight", "detail", "wash", "varnish", "other"]);
 const finishSchema = z.enum(["matte", "satin", "gloss", "metallic", "transparent", "other"]);
 const roleSchema = z.enum(["main", "secondary", "accent", "detail", "other"]);
+const projectStatusSchema = z.enum(["planned", "in_progress", "painting", "reviewing", "finished", "archived"]);
+
+const stepTemplateSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  layerType: layerSchema,
+  ratio: z.string(),
+  thinner: z.string(),
+  pressure: z.string(),
+  technique: z.string(),
+  notes: z.string(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
 
 export const workbenchDataSchema = z.object({
   version: z.literal(1),
@@ -68,6 +82,36 @@ export const workbenchDataSchema = z.object({
     createdAt: z.string(),
     updatedAt: z.string(),
   })),
+  projects: z.array(z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    modelId: z.string().optional(),
+    status: projectStatusSchema,
+    goal: z.string().optional(),
+    styleKeywords: z.array(z.string()),
+    colorSchemeIds: z.array(z.string()),
+    sprayLogIds: z.array(z.string()),
+    imageIds: z.array(z.string()),
+    startedAt: z.string().optional(),
+    finishedAt: z.string().optional(),
+    notes: z.string().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })).optional(),
+  workshopImages: z.array(z.object({
+    id: z.string().min(1),
+    projectId: z.string().optional(),
+    modelId: z.string().optional(),
+    sprayLogId: z.string().optional(),
+    title: z.string().optional(),
+    dataUrl: z.string(),
+    mimeType: z.string(),
+    width: z.number(),
+    height: z.number(),
+    sizeBytes: z.number(),
+    createdAt: z.string(),
+  })).optional(),
+  parameterTemplates: z.array(stepTemplateSchema).optional(),
   updatedAt: z.string(),
 });
 
