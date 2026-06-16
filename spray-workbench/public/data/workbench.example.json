@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "updatedAt": "2026-06-16T00:00:00.000Z",
+  "models": [
+    {
+      "id": "model_rx78",
+      "name": "RX-78-2 高达",
+      "brand": "万代",
+      "series": "HG",
+      "scale": "1/144",
+      "status": "in_progress",
+      "tags": ["机甲", "白蓝红", "练习件"],
+      "notes": "计划尝试低饱和白色和轻微旧化。",
+      "createdAt": "2026-06-16T00:00:00.000Z",
+      "updatedAt": "2026-06-16T00:00:00.000Z"
+    }
+  ],
+  "paints": [
+    { "id": "paint_warm_white", "name": "暖白", "brand": "Gaia", "code": "EX-01", "hex": "#f1eee4", "finish": "matte", "notes": "机甲外甲主色。" },
+    { "id": "paint_signal_blue", "name": "信号蓝", "brand": "Mr.Color", "code": "C80", "hex": "#1d5fa7", "finish": "satin", "notes": "胸甲和肩部辅色。" },
+    { "id": "paint_vivid_red", "name": "鲜红", "brand": "Gaia", "code": "003", "hex": "#d83b32", "finish": "gloss", "notes": "点缀色，少量使用。" }
+  ],
+  "colorSchemes": [
+    {
+      "id": "scheme_gundam_low_sat",
+      "name": "低饱和高达经典配色",
+      "description": "保留经典白蓝红，但整体降低饱和度，适合轻旧化。",
+      "modelIds": ["model_rx78"],
+      "tags": ["机甲", "经典", "低饱和"],
+      "colors": [
+        { "paintId": "paint_warm_white", "role": "main", "layerType": "base", "ratio": "原液", "notes": "外甲大面积主色。" },
+        { "paintId": "paint_signal_blue", "role": "secondary", "layerType": "base", "notes": "胸部和脚部。" },
+        { "paintId": "paint_vivid_red", "role": "accent", "layerType": "detail", "notes": "下巴、盾牌和小面积强调。" }
+      ],
+      "createdAt": "2026-06-16T00:00:00.000Z",
+      "updatedAt": "2026-06-16T00:00:00.000Z"
+    }
+  ],
+  "sprayLogs": []
+}
