@@ -19,11 +19,15 @@ import type {
   GeneratedColor,
   PaintFinish,
   PaintMixItem,
+  PaintRecipe,
+  PaintRecipeItem,
+  PaintRecipeUnitMode,
 } from "../types/workbench";
 import { finishLabels, roleLabels } from "../utils/colors";
 import { formatDate, nowIso } from "../utils/dates";
 import { createId } from "../utils/ids";
 import { generateAiRepaintPrompt } from "../utils/aiRepaintPrompt";
+import { compareColors } from "../utils/colorCompare";
 import {
   formatHsl,
   formatRgb,
@@ -34,6 +38,7 @@ import {
   normalizeHex,
   rgbToHsl,
 } from "../utils/colorMath";
+import { computeEstimatedColor, computeRecipeItems, unitModeLabel } from "../utils/paintMixing";
 
 type ColorLabTab = "wheel" | "mix" | "ai";
 
@@ -48,11 +53,24 @@ const roleNameToRole: Record<string, ColorRole> = {
 };
 
 const emptyMixNotes = {
+  name: "",
+  modelId: "",
+  unitMode: "percent" as PaintRecipeUnitMode,
+  targetColorHex: "#808080",
+  targetTotalMl: "5",
   thinner: "",
+  paintToThinnerRatio: "",
+  airPressure: "",
+  airbrushNozzle: "",
+  primerColor: "",
+  baseColor: "",
+  coatCount: "2",
   finish: "matte" as PaintFinish,
   sprayEffect: "",
   failureIssues: "",
   other: "",
+  adjustmentNotes: "",
+  isFavorite: false,
 };
 
 const modelTypeOptions = ["手办", "高达 / 机甲", "汽车模型", "飞机模型", "军模", "零件", "其他"];
@@ -112,6 +130,12 @@ function noteFromMix(items: PaintMixItem[], paintNames: Record<string, string>, 
   return [
     `混合比例：${ratios || "未填写"}`,
     notes.thinner ? `稀释剂：${notes.thinner}` : "",
+    notes.paintToThinnerRatio ? `漆：稀释剂：${notes.paintToThinnerRatio}` : "",
+    notes.airPressure ? `气压：${notes.airPressure}` : "",
+    notes.airbrushNozzle ? `喷笔口径：${notes.airbrushNozzle}` : "",
+    notes.primerColor ? `底漆颜色：${notes.primerColor}` : "",
+    notes.baseColor ? `底色：${notes.baseColor}` : "",
+    notes.coatCount ? `喷涂层数：${notes.coatCount}` : "",
     notes.finish ? `漆面：${finishLabels[notes.finish]}` : "",
     notes.sprayEffect ? `喷涂效果：${notes.sprayEffect}` : "",
     notes.failureIssues ? `失败问题：${notes.failureIssues}` : "",
@@ -132,7 +156,15 @@ export function ColorLabPage() {
   const [wheelProjectId, setWheelProjectId] = useState("");
   const [wheelNotes, setWheelNotes] = useState("");
   const [mixProjectId, setMixProjectId] = useState("");
-  const [mixItems, setMixItems] = useState<PaintMixItem[]>(data.paints.slice(0, 2).map((paint, index) => ({ paintId: paint.id, ratioPercent: index === 0 ? 60 : 40 })));
+  const queuedPaintIds = (() => {
+    try {
+      return JSON.parse(window.localStorage.getItem("spray-workbench:paint-mix-queue") || "[]") as string[];
+    } catch {
+      return [];
+    }
+  })();
+  const initialRecipePaints = (queuedPaintIds.length ? queuedPaintIds : data.paints.slice(0, 2).map((paint) => paint.id)).filter((id) => data.paints.some((paint) => paint.id === id));
+  const [mixItems, setMixItems] = useState<PaintRecipeItem[]>(initialRecipePaints.map((paintId, index) => ({ paintId, amount: index === 0 ? 60 : 40 })));
   const [mixNotes, setMixNotes] = useState(emptyMixNotes);
   const [aiForm, setAiForm] = useState(emptyAiForm);
   const [copyStatus, setCopyStatus] = useState("");
@@ -143,13 +175,12 @@ export function ColorLabPage() {
   const hexError = getHexError(manualHex);
   const harmonyGroups = useMemo(() => generateHarmony(baseHex), [baseHex]);
   const paintNames = useMemo(() => Object.fromEntries(data.paints.map((paint) => [paint.id, paint.name])), [data.paints]);
-  const mixTotal = mixItems.reduce((sum, item) => sum + (Number(item.ratioPercent) || 0), 0);
-  const mixStatus = Math.abs(mixTotal - 100) <= 2 ? "比例接近 100%，适合保存记录。" : "比例总和建议接近 100%，当前仅作为预估颜色参考。";
-  const resultColorHex = mixRgbWeighted(mixItems.map((item) => ({
-    hex: data.paints.find((paint) => paint.id === item.paintId)?.hex ?? "#808080",
-    weight: Number(item.ratioPercent) || 0,
-  })));
+  const computedMixItems = computeRecipeItems(mixItems, mixNotes.unitMode, Number(mixNotes.targetTotalMl) || undefined);
+  const mixTotal = mixNotes.unitMode === "percent" ? mixItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) : computedMixItems.reduce((sum, item) => sum + (item.computedPercent ?? 0), 0);
+  const mixStatus = mixNotes.unitMode === "percent" && Math.abs(mixTotal - 100) > 2 ? "百分比总和建议接近 100%。" : `${unitModeLabel(mixNotes.unitMode)}已换算为百分比和目标用量。`;
+  const resultColorHex = computeEstimatedColor(computedMixItems, data.paints);
   const resultInfo = colorInfo(resultColorHex);
+  const colorComparison = compareColors(mixNotes.targetColorHex, resultColorHex);
   const recentExperiments = [...(data.colorLabExperiments ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 12);
   const aiPrompts = useMemo(() => generateAiRepaintPrompt(aiForm), [aiForm]);
   const recentAiConcepts = [...(data.aiRepaintConcepts ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 12);
@@ -268,10 +299,10 @@ export function ColorLabPage() {
   function addMixItem() {
     const nextPaint = data.paints.find((paint) => !mixItems.some((item) => item.paintId === paint.id));
     if (!nextPaint) return window.alert("颜色库里没有更多可添加的颜色。");
-    setMixItems([...mixItems, { paintId: nextPaint.id, ratioPercent: 0 }]);
+    setMixItems([...mixItems, { paintId: nextPaint.id, amount: 0 }]);
   }
 
-  function updateMixItem(index: number, patch: Partial<PaintMixItem>) {
+  function updateMixItem(index: number, patch: Partial<PaintRecipeItem>) {
     setMixItems(mixItems.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
   }
 
@@ -282,6 +313,7 @@ export function ColorLabPage() {
 
   function saveMixExperiment() {
     const timestamp = nowIso();
+    const paintMixItems: PaintMixItem[] = computedMixItems.map((item) => ({ paintId: item.paintId, ratioPercent: item.computedPercent ?? 0 }));
     dispatch({
       type: "addColorLabExperiment",
       experiment: {
@@ -290,9 +322,9 @@ export function ColorLabPage() {
         name: `混色实验 ${timestampLabel()}`,
         projectId: mixProjectId || undefined,
         resultColorHex,
-        paintMixItems: mixItems,
+        paintMixItems,
         generatedColors: [generatedFromHex("预估颜色", resultColorHex, "RGB 加权平均预估")],
-        notes: noteFromMix(mixItems, paintNames, mixNotes),
+        notes: noteFromMix(paintMixItems, paintNames, mixNotes),
         createdAt: timestamp,
         updatedAt: timestamp,
       },
@@ -308,7 +340,7 @@ export function ColorLabPage() {
         name: `混色预估 ${timestampLabel()}`,
         hex: resultColorHex,
         finish: mixNotes.finish,
-        notes: `来源：颜料混色实验室\n${noteFromMix(mixItems, paintNames, mixNotes)}`,
+        notes: `来源：配漆工作流\n该颜色为屏幕预估，不代表真实颜料混合和实际喷涂效果。\n${noteFromMix(computedMixItems.map((item) => ({ paintId: item.paintId, ratioPercent: item.computedPercent ?? 0 })), paintNames, mixNotes)}`,
       },
     });
     saveMixExperiment();
@@ -317,7 +349,7 @@ export function ColorLabPage() {
 
   function saveMixAsScheme() {
     const timestamp = nowIso();
-    const paintIds = mixItems.map((item, index) => {
+    const paintIds = computedMixItems.map((item, index) => {
       const sourcePaint = data.paints.find((paint) => paint.id === item.paintId);
       return { sourcePaint, item, role: roleOrder[index] ?? "other" };
     }).filter((item) => item.sourcePaint);
@@ -329,7 +361,7 @@ export function ColorLabPage() {
         name: `混色预估 ${timestampLabel()}`,
         hex: resultColorHex,
         finish: mixNotes.finish,
-        notes: `来源：颜料混色实验室\n${noteFromMix(mixItems, paintNames, mixNotes)}`,
+        notes: `来源：配漆工作流\n${noteFromMix(computedMixItems.map((item) => ({ paintId: item.paintId, ratioPercent: item.computedPercent ?? 0 })), paintNames, mixNotes)}`,
       },
     });
     const schemeId = createId("scheme");
@@ -338,14 +370,14 @@ export function ColorLabPage() {
       scheme: {
         id: schemeId,
         name: `混色实验方案 ${timestampLabel()}`,
-        description: "由颜料混色实验室保存，结果为预估颜色。",
+        description: "由配漆工作流保存，结果为屏幕预估颜色。",
         modelIds: [],
         colors: [
           ...paintIds.map(({ sourcePaint, item, role }) => ({
             paintId: sourcePaint!.id,
             role,
             layerType: "base" as const,
-            percentage: item.ratioPercent,
+            percentage: item.computedPercent,
             notes: "参与混色的原始颜料",
           })),
           { paintId: resultPaintId, role: "other" as const, layerType: "base" as const, percentage: 0, notes: "混色预估结果" },
@@ -364,6 +396,67 @@ export function ColorLabPage() {
     }
     saveMixExperiment();
     setNotice("已保存混色结果为配色方案，并同步保存实验记录。");
+  }
+
+  function buildPaintRecipe(existing?: PaintRecipe, testImageIds = existing?.testImageIds ?? []): PaintRecipe {
+    const timestamp = nowIso();
+    return {
+      id: existing?.id ?? createId("recipe"),
+      name: mixNotes.name.trim() || `配漆配方 ${timestampLabel()}`,
+      projectId: mixProjectId || undefined,
+      modelId: mixNotes.modelId || undefined,
+      resultColorHex,
+      estimatedColorHex: resultColorHex,
+      targetColorHex: normalizeHex(mixNotes.targetColorHex),
+      items: computedMixItems,
+      unitMode: mixNotes.unitMode,
+      targetTotalMl: Number(mixNotes.targetTotalMl) || undefined,
+      thinner: mixNotes.thinner.trim() || undefined,
+      paintToThinnerRatio: mixNotes.paintToThinnerRatio.trim() || undefined,
+      airPressure: mixNotes.airPressure.trim() || undefined,
+      airbrushNozzle: mixNotes.airbrushNozzle.trim() || undefined,
+      primerColor: mixNotes.primerColor.trim() || undefined,
+      baseColor: mixNotes.baseColor.trim() || undefined,
+      coatCount: Number(mixNotes.coatCount) || undefined,
+      testImageIds,
+      resultNotes: mixNotes.sprayEffect.trim() || mixNotes.failureIssues.trim() || mixNotes.other.trim() || undefined,
+      adjustmentNotes: mixNotes.adjustmentNotes.trim() || undefined,
+      isFavorite: mixNotes.isFavorite,
+      createdAt: existing?.createdAt ?? timestamp,
+      updatedAt: timestamp,
+    };
+  }
+
+  function savePaintRecipe() {
+    dispatch({ type: "addPaintRecipe", recipe: buildPaintRecipe() });
+    setNotice("已保存配漆配方。");
+  }
+
+  function toggleRecipeFavorite(recipe: PaintRecipe) {
+    dispatch({ type: "updatePaintRecipe", recipe: { ...recipe, isFavorite: !recipe.isFavorite, updatedAt: nowIso() } });
+  }
+
+  function attachRecipeImages(recipe: PaintRecipe, uploaded: UploadedImagePayload[]) {
+    const timestamp = nowIso();
+    const ids = uploaded.map(() => createId("image"));
+    uploaded.forEach((image, index) => {
+      dispatch({
+        type: "addWorkshopImage",
+        image: {
+          id: ids[index],
+          projectId: recipe.projectId,
+          modelId: recipe.modelId,
+          title: image.title || "配漆试色图片",
+          notes: `来源：配漆配方 ${recipe.name}`,
+          capturedAt: "",
+          ...image,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      });
+    });
+    dispatch({ type: "updatePaintRecipe", recipe: { ...recipe, testImageIds: [...ids, ...recipe.testImageIds], updatedAt: timestamp } });
+    setNotice("已上传试色图片并关联到配方。");
   }
 
   function applySchemeColors(schemeId: string) {
@@ -489,11 +582,11 @@ export function ColorLabPage() {
 
   return (
     <>
-      <PageHeader title="配色实验室" description="用色轮生成配色建议，用颜料比例记录预估混色结果。" />
+      <PageHeader title="配色实验室" description="用色轮生成配色建议，用配漆工作流记录比例、试色和喷涂参数。" />
       <section className="panel">
         <div className="tab-row">
           <button className={`tab-button ${activeTab === "wheel" ? "active" : ""}`} type="button" onClick={() => setActiveTab("wheel")}>色轮</button>
-          <button className={`tab-button ${activeTab === "mix" ? "active" : ""}`} type="button" onClick={() => setActiveTab("mix")}>颜料混色</button>
+          <button className={`tab-button ${activeTab === "mix" ? "active" : ""}`} type="button" onClick={() => setActiveTab("mix")}>配漆工作流</button>
           <button className={`tab-button ${activeTab === "ai" ? "active" : ""}`} type="button" onClick={() => setActiveTab("ai")}>AI 重涂参考</button>
         </div>
       </section>
@@ -563,41 +656,69 @@ export function ColorLabPage() {
       ) : activeTab === "mix" ? (
         <section className="color-lab-layout">
           <div className="panel form-panel">
-            <h2>颜料混色实验</h2>
-            <p className="muted">这里显示的是预估颜色，不是准确颜色。真实颜料受遮盖力、透明度、底色、稀释和喷涂厚度影响。</p>
+            <h2>配漆工作流</h2>
+            <p className="muted">记录真实喷涂配漆比例、目标总量、稀释参数和试色结论。该颜色为屏幕预估，不代表真实颜料混合和实际喷涂效果。</p>
+            <Field label="配方名称"><input value={mixNotes.name} onChange={(event) => setMixNotes({ ...mixNotes, name: event.target.value })} placeholder="例如 低饱和蓝灰主色" /></Field>
             <Field label="关联项目">
               <select value={mixProjectId} onChange={(event) => setMixProjectId(event.target.value)}>
                 <option value="">不关联项目</option>
                 {(data.projects ?? []).map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
               </select>
             </Field>
+            <Field label="关联模型">
+              <select value={mixNotes.modelId} onChange={(event) => setMixNotes({ ...mixNotes, modelId: event.target.value })}>
+                <option value="">不关联模型</option>
+                {data.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+              </select>
+            </Field>
+            <div className="form-grid">
+              <Field label="单位模式">
+                <select value={mixNotes.unitMode} onChange={(event) => setMixNotes({ ...mixNotes, unitMode: event.target.value as PaintRecipeUnitMode })}>
+                  <option value="percent">百分比 %</option>
+                  <option value="parts">份数 parts</option>
+                  <option value="drops">滴数 drops</option>
+                  <option value="ml">毫升 ml</option>
+                </select>
+              </Field>
+              <Field label="目标总量 ml"><input type="number" min="0" step="0.1" value={mixNotes.targetTotalMl} onChange={(event) => setMixNotes({ ...mixNotes, targetTotalMl: event.target.value })} /></Field>
+              <Field label="目标色 HEX"><input value={mixNotes.targetColorHex} onChange={(event) => setMixNotes({ ...mixNotes, targetColorHex: event.target.value })} /></Field>
+              <Field label="试色收藏"><label className="check-row"><input type="checkbox" checked={mixNotes.isFavorite} onChange={(event) => setMixNotes({ ...mixNotes, isFavorite: event.target.checked })} /> 收藏为常用配方</label></Field>
+            </div>
             <div className="mix-item-list">
               {mixItems.map((item, index) => {
                 const paint = data.paints.find((paintItem) => paintItem.id === item.paintId);
+                const computed = computedMixItems[index];
                 return (
                   <div className="mix-item-row" key={`${item.paintId}-${index}`}>
                     <span className="mini-color" style={{ background: paint?.hex ?? "#808080" }} />
                     <select value={item.paintId} onChange={(event) => updateMixItem(index, { paintId: event.target.value })}>
                       {data.paints.map((paintOption) => <option key={paintOption.id} value={paintOption.id}>{paintOption.name}</option>)}
                     </select>
-                    <input type="number" min="0" max="100" value={item.ratioPercent} onChange={(event) => updateMixItem(index, { ratioPercent: Number(event.target.value) })} />
-                    <span>%</span>
+                    <input type="number" min="0" step="0.1" value={item.amount} onChange={(event) => updateMixItem(index, { amount: Number(event.target.value) })} />
+                    <span>{mixNotes.unitMode === "percent" ? "%" : mixNotes.unitMode}</span>
+                    <small>{computed?.computedPercent?.toFixed(1)}%{computed?.computedMl !== undefined ? ` · ${computed.computedMl.toFixed(2)} ml` : ""}</small>
                     <button className="button ghost danger" type="button" onClick={() => deleteMixItem(index)}>删除</button>
                   </div>
                 );
               })}
             </div>
             <button className="button ghost" type="button" onClick={addMixItem}>新增颜料</button>
-            <div className="form-grid">
-              <Field label="稀释剂"><input value={mixNotes.thinner} onChange={(event) => setMixNotes({ ...mixNotes, thinner: event.target.value })} /></Field>
-              <Field label="漆面">
-                <select value={mixNotes.finish} onChange={(event) => setMixNotes({ ...mixNotes, finish: event.target.value as PaintFinish })}>
-                  {Object.entries(finishLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
-              </Field>
-            </div>
+            <details className="prompt-details" open>
+              <summary>稀释和喷涂参数</summary>
+              <div className="form-grid">
+                <Field label="稀释剂"><input value={mixNotes.thinner} onChange={(event) => setMixNotes({ ...mixNotes, thinner: event.target.value })} /></Field>
+                <Field label="漆：稀释剂比例"><input value={mixNotes.paintToThinnerRatio} onChange={(event) => setMixNotes({ ...mixNotes, paintToThinnerRatio: event.target.value })} placeholder="例如 1:1.5" /></Field>
+                <Field label="气压"><input value={mixNotes.airPressure} onChange={(event) => setMixNotes({ ...mixNotes, airPressure: event.target.value })} placeholder="例如 16 PSI" /></Field>
+                <Field label="喷笔口径"><input value={mixNotes.airbrushNozzle} onChange={(event) => setMixNotes({ ...mixNotes, airbrushNozzle: event.target.value })} placeholder="例如 0.3 mm" /></Field>
+                <Field label="喷涂层数"><input type="number" min="0" value={mixNotes.coatCount} onChange={(event) => setMixNotes({ ...mixNotes, coatCount: event.target.value })} /></Field>
+                <Field label="漆面"><select value={mixNotes.finish} onChange={(event) => setMixNotes({ ...mixNotes, finish: event.target.value as PaintFinish })}>{Object.entries(finishLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+                <Field label="底漆颜色"><input value={mixNotes.primerColor} onChange={(event) => setMixNotes({ ...mixNotes, primerColor: event.target.value })} /></Field>
+                <Field label="底色"><input value={mixNotes.baseColor} onChange={(event) => setMixNotes({ ...mixNotes, baseColor: event.target.value })} /></Field>
+              </div>
+            </details>
             <Field label="喷涂效果"><textarea value={mixNotes.sprayEffect} onChange={(event) => setMixNotes({ ...mixNotes, sprayEffect: event.target.value })} /></Field>
             <Field label="失败问题"><textarea value={mixNotes.failureIssues} onChange={(event) => setMixNotes({ ...mixNotes, failureIssues: event.target.value })} /></Field>
+            <Field label="修正方案"><textarea value={mixNotes.adjustmentNotes} onChange={(event) => setMixNotes({ ...mixNotes, adjustmentNotes: event.target.value })} /></Field>
             <Field label="其他说明"><textarea value={mixNotes.other} onChange={(event) => setMixNotes({ ...mixNotes, other: event.target.value })} /></Field>
           </div>
           <div className="panel">
@@ -608,31 +729,63 @@ export function ColorLabPage() {
                 <strong>{resultInfo.hex}</strong>
                 <span>{resultInfo.rgb}</span>
                 <span>{resultInfo.hsl}</span>
-                <p className={Math.abs(mixTotal - 100) <= 2 ? "muted" : "error-text"}>总比例：{mixTotal}% · {mixStatus}</p>
+                <p className={mixNotes.unitMode !== "percent" || Math.abs(mixTotal - 100) <= 2 ? "muted" : "error-text"}>总比例：{mixTotal.toFixed(1)}% · {mixStatus}</p>
+                <p className="error-text">该颜色为屏幕预估，不代表真实颜料混合和实际喷涂效果。</p>
               </div>
             </div>
+            <div className="target-compare-grid">
+              <div><strong>目标色</strong><span className="large-swatch" style={{ background: normalizeHex(mixNotes.targetColorHex) }} /></div>
+              <div><strong>预估色</strong><span className="large-swatch" style={{ background: resultColorHex }} /></div>
+            </div>
+            <div className="mix-summary">
+              <span>目标：{colorComparison.targetRgb} · {colorComparison.targetHsl}</span>
+              <span>预估：{colorComparison.estimatedRgb} · {colorComparison.estimatedHsl}</span>
+              <span>RGB 差值：R {colorComparison.rgbDelta.r} / G {colorComparison.rgbDelta.g} / B {colorComparison.rgbDelta.b}</span>
+              <span>HSL 差值：H {colorComparison.hslDelta.h} / S {colorComparison.hslDelta.s} / L {colorComparison.hslDelta.l}</span>
+            </div>
+            <div className="timeline-list">
+              <strong>以下为经验建议，仅用于试色方向参考。</strong>
+              {colorComparison.suggestions.map((suggestion) => <span key={suggestion}>{suggestion}</span>)}
+            </div>
             <div className="ratio-bar" aria-label="颜色比例条">
-              {mixItems.map((item, index) => {
+              {computedMixItems.map((item, index) => {
                 const paint = data.paints.find((paintItem) => paintItem.id === item.paintId);
-                return <span key={`${item.paintId}-${index}`} style={{ width: `${Math.max(0, item.ratioPercent)}%`, background: paint?.hex ?? "#808080" }} title={`${paint?.name ?? "未知颜色"} ${item.ratioPercent}%`} />;
+                return <span key={`${item.paintId}-${index}`} style={{ width: `${Math.max(0, item.computedPercent ?? 0)}%`, background: paint?.hex ?? "#808080" }} title={`${paint?.name ?? "未知颜色"} ${item.computedPercent?.toFixed(1)}%`} />;
               })}
             </div>
             <div className="item-list">
-              {mixItems.map((item, index) => {
+              {computedMixItems.map((item, index) => {
                 const paint = data.paints.find((paintItem) => paintItem.id === item.paintId);
                 return (
                   <article className="list-card" key={`${item.paintId}-summary-${index}`}>
-                    <strong>{paint?.name ?? "颜色已删除"} · {item.ratioPercent}%</strong>
+                    <strong>{paint?.name ?? "颜色已删除"} · {item.computedPercent?.toFixed(1)}%</strong>
                     <span>{[paint?.brand, paint?.code].filter(Boolean).join(" · ") || "未填写品牌色号"}</span>
-                    <small>{paint?.hex ?? "#808080"}</small>
+                    <small>{paint?.hex ?? "#808080"}{item.computedMl !== undefined ? ` · 目标用量 ${item.computedMl.toFixed(2)} ml` : ""}</small>
                   </article>
                 );
               })}
             </div>
             <div className="button-row">
+              <button className="button primary" type="button" onClick={savePaintRecipe}>保存配漆配方</button>
               <button className="button primary" type="button" onClick={saveMixExperiment}>保存混色实验</button>
               <button className="button ghost" type="button" onClick={saveMixAsPaint}>保存为新颜色</button>
               <button className="button ghost" type="button" onClick={saveMixAsScheme}>保存为配色方案</button>
+            </div>
+            <h2>最近配方 / 收藏配方</h2>
+            <div className="item-list">
+              {(data.paintRecipes ?? []).slice(0, 8).map((recipe) => {
+                const recipeImages = (data.workshopImages ?? []).filter((image) => recipe.testImageIds.includes(image.id));
+                return (
+                  <article className="list-card" key={recipe.id}>
+                    <div className="card-top"><strong>{recipe.isFavorite ? "★ " : ""}{recipe.name}</strong><span className="badge">{unitModeLabel(recipe.unitMode)}</span></div>
+                    <div className="mini-swatches"><span className="mixed-dot" style={{ background: recipe.estimatedColorHex ?? "#808080" }} /><span style={{ background: recipe.targetColorHex ?? "#808080" }} /></div>
+                    <span>目标总量：{recipe.targetTotalMl ?? "未填"} ml · 更新时间：{formatDate(recipe.updatedAt)}</span>
+                    {recipeImages.length > 0 && <div className="ai-result-grid">{recipeImages.map((image) => <WorkshopImageView key={image.id} image={image} alt={image.title || "试色图片"} />)}</div>}
+                    <ImageUploader label="上传试色图片" fileNamePrefix={`recipe-${recipe.id}`} onUpload={(uploaded) => attachRecipeImages(recipe, uploaded)} />
+                    <div className="button-row"><button className="button ghost" type="button" onClick={() => toggleRecipeFavorite(recipe)}>{recipe.isFavorite ? "取消收藏" : "收藏配方"}</button><ConfirmDelete onConfirm={() => dispatch({ type: "deletePaintRecipe", id: recipe.id })} /></div>
+                  </article>
+                );
+              })}
             </div>
           </div>
         </section>

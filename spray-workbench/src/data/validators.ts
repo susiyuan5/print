@@ -4,6 +4,11 @@ import type { WorkbenchData } from "../types/workbench";
 const modelStatusSchema = z.enum(["planned", "in_progress", "painted", "finished", "archived"]);
 const layerSchema = z.enum(["primer", "base", "shade", "highlight", "detail", "wash", "varnish", "other"]);
 const finishSchema = z.enum(["matte", "satin", "gloss", "metallic", "transparent", "other"]);
+const paintTypeSchema = z.enum(["water_based", "lacquer", "enamel", "acrylic", "other"]);
+const paintOpacitySchema = z.enum(["transparent", "semi_transparent", "high_coverage"]);
+const paintTemperatureSchema = z.enum(["cool", "neutral", "warm"]);
+const paintColorFamilySchema = z.enum(["red", "orange", "yellow", "green", "blue", "purple", "black", "white", "gray", "brown", "metallic", "transparent", "other"]);
+const recipeUnitModeSchema = z.enum(["percent", "parts", "drops", "ml"]);
 const roleSchema = z.enum(["main", "secondary", "accent", "detail", "other"]);
 const projectStatusSchema = z.enum(["planned", "in_progress", "painting", "reviewing", "finished", "archived"]);
 const imageStorageTypeSchema = z.enum(["dataUrl", "localFile", "remoteUrl"]);
@@ -51,6 +56,14 @@ export const workbenchDataSchema = z.object({
     code: z.string().optional(),
     hex: z.string().regex(/^#[0-9a-fA-F]{6}$/, "颜色必须是 #RRGGBB 格式"),
     finish: finishSchema.optional(),
+    paintType: paintTypeSchema.optional(),
+    opacity: paintOpacitySchema.optional(),
+    temperature: paintTemperatureSchema.optional(),
+    colorFamily: paintColorFamilySchema.optional(),
+    stockAmount: z.string().optional(),
+    bottleSize: z.string().optional(),
+    purchaseDate: z.string().optional(),
+    favorite: z.boolean().optional(),
     notes: z.string().optional(),
   })),
   colorSchemes: z.array(z.object({
@@ -187,6 +200,37 @@ export const workbenchDataSchema = z.object({
     comfyPromptEn: z.string(),
     promptZhDescription: z.string(),
     notes: z.string().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })).optional(),
+  paintRecipes: z.array(z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    projectId: z.string().optional(),
+    modelId: z.string().optional(),
+    resultColorHex: z.string().optional(),
+    estimatedColorHex: z.string().optional(),
+    targetColorHex: z.string().optional(),
+    items: z.array(z.object({
+      paintId: z.string(),
+      amount: z.number(),
+      computedPercent: z.number().optional(),
+      computedMl: z.number().optional(),
+      notes: z.string().optional(),
+    })),
+    unitMode: recipeUnitModeSchema,
+    targetTotalMl: z.number().optional(),
+    thinner: z.string().optional(),
+    paintToThinnerRatio: z.string().optional(),
+    airPressure: z.string().optional(),
+    airbrushNozzle: z.string().optional(),
+    primerColor: z.string().optional(),
+    baseColor: z.string().optional(),
+    coatCount: z.number().optional(),
+    testImageIds: z.array(z.string()),
+    resultNotes: z.string().optional(),
+    adjustmentNotes: z.string().optional(),
+    isFavorite: z.boolean().optional(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })).optional(),

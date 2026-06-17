@@ -72,6 +72,7 @@ export const sampleData: WorkbenchData = {
   workshopImages: [],
   colorLabExperiments: [],
   aiRepaintConcepts: [],
+  paintRecipes: [],
   parameterTemplates: [
     {
       id: "water_basic",

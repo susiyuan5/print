@@ -2,6 +2,7 @@ import type {
   AiRepaintConcept,
   ColorScheme,
   ColorLabExperiment,
+  PaintRecipe,
   PaintColor,
   ScaleModel,
   SprayLog,
@@ -33,7 +34,10 @@ export type WorkbenchAction =
   | { type: "deleteColorLabExperiment"; id: string }
   | { type: "addAiRepaintConcept"; concept: AiRepaintConcept }
   | { type: "updateAiRepaintConcept"; concept: AiRepaintConcept }
-  | { type: "deleteAiRepaintConcept"; id: string };
+  | { type: "deleteAiRepaintConcept"; id: string }
+  | { type: "addPaintRecipe"; recipe: PaintRecipe }
+  | { type: "updatePaintRecipe"; recipe: PaintRecipe }
+  | { type: "deletePaintRecipe"; id: string };
 
 function touch(data: WorkbenchData): WorkbenchData {
   return { ...data, updatedAt: nowIso() };
@@ -61,6 +65,7 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
         })),
         projects: (data.projects ?? []).map((project) => project.modelId === action.id ? { ...project, modelId: undefined } : project),
         workshopImages: (data.workshopImages ?? []).map((image) => image.modelId === action.id ? { ...image, modelId: undefined } : image),
+        paintRecipes: (data.paintRecipes ?? []).map((recipe) => recipe.modelId === action.id ? { ...recipe, modelId: undefined } : recipe),
       });
     case "upsertPaint":
       return touch({
@@ -136,6 +141,7 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
         workshopImages: (data.workshopImages ?? []).map((image) => image.projectId === action.id ? { ...image, projectId: undefined } : image),
         colorLabExperiments: (data.colorLabExperiments ?? []).map((experiment) => experiment.projectId === action.id ? { ...experiment, projectId: undefined } : experiment),
         aiRepaintConcepts: (data.aiRepaintConcepts ?? []).map((concept) => concept.projectId === action.id ? { ...concept, projectId: undefined } : concept),
+        paintRecipes: (data.paintRecipes ?? []).map((recipe) => recipe.projectId === action.id ? { ...recipe, projectId: undefined } : recipe),
       });
     case "addWorkshopImage":
       return touch({ ...data, workshopImages: [action.image, ...(data.workshopImages ?? [])] });
@@ -156,6 +162,10 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
           ...concept,
           sourceImageId: concept.sourceImageId === action.id ? undefined : concept.sourceImageId,
           resultImageIds: concept.resultImageIds.filter((id) => id !== action.id),
+        })),
+        paintRecipes: (data.paintRecipes ?? []).map((recipe) => ({
+          ...recipe,
+          testImageIds: recipe.testImageIds.filter((id) => id !== action.id),
         })),
       });
     case "upsertTemplate":
@@ -180,6 +190,12 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
       });
     case "deleteAiRepaintConcept":
       return touch({ ...data, aiRepaintConcepts: (data.aiRepaintConcepts ?? []).filter((item) => item.id !== action.id) });
+    case "addPaintRecipe":
+      return touch({ ...data, paintRecipes: [action.recipe, ...(data.paintRecipes ?? [])] });
+    case "updatePaintRecipe":
+      return touch({ ...data, paintRecipes: (data.paintRecipes ?? []).map((item) => item.id === action.recipe.id ? action.recipe : item) });
+    case "deletePaintRecipe":
+      return touch({ ...data, paintRecipes: (data.paintRecipes ?? []).filter((item) => item.id !== action.id) });
     default:
       return data;
   }

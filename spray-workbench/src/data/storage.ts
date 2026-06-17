@@ -2,6 +2,7 @@ import { sampleData } from "./sampleData";
 import { sprayStepTemplates } from "./stepTemplates";
 import { parseWorkbenchData } from "./validators";
 import type { ImageStorageType, WorkbenchData } from "../types/workbench";
+import { inferColorFamily, inferTemperature } from "../utils/colors";
 
 export const STORAGE_KEY = "spray-workbench:data:v1";
 
@@ -16,6 +17,14 @@ export interface LoadedData {
 export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
   return {
     ...data,
+    paints: data.paints.map((paint) => ({
+      ...paint,
+      paintType: paint.paintType ?? "other",
+      opacity: paint.opacity ?? "high_coverage",
+      temperature: paint.temperature ?? inferTemperature(paint.hex),
+      colorFamily: paint.colorFamily ?? inferColorFamily(paint.hex, paint.finish),
+      favorite: paint.favorite ?? false,
+    })),
     projects: data.projects ?? [],
     workshopImages: (data.workshopImages ?? []).map((image) => {
       const storageType: ImageStorageType = image.storageType ?? (image.dataUrl ? "dataUrl" : image.imageUrl ? "remoteUrl" : "dataUrl");
@@ -36,6 +45,7 @@ export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
     parameterTemplates: data.parameterTemplates?.length ? data.parameterTemplates : sprayStepTemplates,
     colorLabExperiments: data.colorLabExperiments ?? [],
     aiRepaintConcepts: data.aiRepaintConcepts ?? [],
+    paintRecipes: data.paintRecipes ?? [],
   };
 }
 

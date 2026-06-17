@@ -11,6 +11,11 @@ export type PaintLayerType =
   | "other";
 
 export type PaintFinish = "matte" | "satin" | "gloss" | "metallic" | "transparent" | "other";
+export type PaintType = "water_based" | "lacquer" | "enamel" | "acrylic" | "other";
+export type PaintOpacity = "transparent" | "semi_transparent" | "high_coverage";
+export type PaintTemperature = "cool" | "neutral" | "warm";
+export type PaintColorFamily = "red" | "orange" | "yellow" | "green" | "blue" | "purple" | "black" | "white" | "gray" | "brown" | "metallic" | "transparent" | "other";
+export type PaintRecipeUnitMode = "percent" | "parts" | "drops" | "ml";
 export type ColorRole = "main" | "secondary" | "accent" | "detail" | "other";
 export type PreviewShape = "car" | "aircraft" | "robot" | "part";
 export type ProjectStatus = "planned" | "in_progress" | "painting" | "reviewing" | "finished" | "archived";
@@ -35,7 +40,42 @@ export interface WorkbenchData {
   parameterTemplates?: SprayStepTemplate[];
   colorLabExperiments?: ColorLabExperiment[];
   aiRepaintConcepts?: AiRepaintConcept[];
+  paintRecipes?: PaintRecipe[];
   updatedAt: string;
+}
+
+export interface PaintRecipe {
+  id: string;
+  name: string;
+  projectId?: string;
+  modelId?: string;
+  resultColorHex?: string;
+  estimatedColorHex?: string;
+  targetColorHex?: string;
+  items: PaintRecipeItem[];
+  unitMode: PaintRecipeUnitMode;
+  targetTotalMl?: number;
+  thinner?: string;
+  paintToThinnerRatio?: string;
+  airPressure?: string;
+  airbrushNozzle?: string;
+  primerColor?: string;
+  baseColor?: string;
+  coatCount?: number;
+  testImageIds: string[];
+  resultNotes?: string;
+  adjustmentNotes?: string;
+  isFavorite?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaintRecipeItem {
+  paintId: string;
+  amount: number;
+  computedPercent?: number;
+  computedMl?: number;
+  notes?: string;
 }
 
 export interface AiRepaintConcept {
@@ -178,6 +218,14 @@ export interface PaintColor {
   code?: string;
   hex: string;
   finish?: PaintFinish;
+  paintType?: PaintType;
+  opacity?: PaintOpacity;
+  temperature?: PaintTemperature;
+  colorFamily?: PaintColorFamily;
+  stockAmount?: string;
+  bottleSize?: string;
+  purchaseDate?: string;
+  favorite?: boolean;
   notes?: string;
 }
 
