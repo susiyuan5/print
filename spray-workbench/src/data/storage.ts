@@ -17,6 +17,7 @@ export interface LoadedData {
 export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
   return {
     ...data,
+    modelAssets: data.modelAssets ?? [],
     paints: data.paints.map((paint) => ({
       ...paint,
       paintType: paint.paintType ?? "other",

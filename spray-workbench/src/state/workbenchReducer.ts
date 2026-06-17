@@ -2,6 +2,7 @@ import type {
   AiRepaintConcept,
   ColorScheme,
   ColorLabExperiment,
+  ModelAsset,
   PaintRecipe,
   PaintColor,
   ScaleModel,
@@ -17,6 +18,8 @@ export type WorkbenchAction =
   | { type: "replace"; data: WorkbenchData }
   | { type: "upsertModel"; model: ScaleModel }
   | { type: "deleteModel"; id: string }
+  | { type: "upsertModelAsset"; asset: ModelAsset }
+  | { type: "deleteModelAsset"; id: string }
   | { type: "upsertPaint"; paint: PaintColor }
   | { type: "deletePaint"; id: string }
   | { type: "upsertScheme"; scheme: ColorScheme }
@@ -58,6 +61,7 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
       return touch({
         ...data,
         models: data.models.filter((item) => item.id !== action.id),
+        modelAssets: (data.modelAssets ?? []).map((asset) => asset.physicalModelId === action.id ? { ...asset, physicalModelId: undefined } : asset),
         sprayLogs: data.sprayLogs.filter((item) => item.modelId !== action.id),
         colorSchemes: data.colorSchemes.map((scheme) => ({
           ...scheme,
@@ -138,6 +142,7 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
       return touch({
         ...data,
         projects: (data.projects ?? []).filter((item) => item.id !== action.id),
+        modelAssets: (data.modelAssets ?? []).map((asset) => asset.projectId === action.id ? { ...asset, projectId: undefined } : asset),
         workshopImages: (data.workshopImages ?? []).map((image) => image.projectId === action.id ? { ...image, projectId: undefined } : image),
         colorLabExperiments: (data.colorLabExperiments ?? []).map((experiment) => experiment.projectId === action.id ? { ...experiment, projectId: undefined } : experiment),
         aiRepaintConcepts: (data.aiRepaintConcepts ?? []).map((concept) => concept.projectId === action.id ? { ...concept, projectId: undefined } : concept),
@@ -196,6 +201,15 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
       return touch({ ...data, paintRecipes: (data.paintRecipes ?? []).map((item) => item.id === action.recipe.id ? action.recipe : item) });
     case "deletePaintRecipe":
       return touch({ ...data, paintRecipes: (data.paintRecipes ?? []).filter((item) => item.id !== action.id) });
+    case "upsertModelAsset":
+      return touch({
+        ...data,
+        modelAssets: (data.modelAssets ?? []).some((item) => item.id === action.asset.id)
+          ? (data.modelAssets ?? []).map((item) => (item.id === action.asset.id ? action.asset : item))
+          : [action.asset, ...(data.modelAssets ?? [])],
+      });
+    case "deleteModelAsset":
+      return touch({ ...data, modelAssets: (data.modelAssets ?? []).filter((item) => item.id !== action.id) });
     default:
       return data;
   }

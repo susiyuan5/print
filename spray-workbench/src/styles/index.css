@@ -214,3 +214,239 @@ textarea { min-height: 92px; resize: vertical; }
   .ai-compare-grid, .ai-project-images { grid-template-columns: 1fr; }
   .wheel-disc, .mix-result-swatch { width: 100%; max-width: 220px; }
 }
+
+
+/* ---- 3D Model Viewer ---- */
+.model-viewer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #222;
+}
+
+.model-viewer-wrap {
+  margin-top: 12px;
+}
+
+.model-viewer-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.model-viewer canvas {
+  display: block;
+}
+
+.model-viewer-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #555;
+  background: #1a1a2e;
+  z-index: 2;
+}
+
+.model-viewer-placeholder span {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.model-viewer-placeholder small {
+  font-size: 12px;
+  color: #666;
+}
+
+.model-viewer-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 3;
+}
+
+.model-viewer-loading,
+.model-viewer-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: #ccc;
+  text-align: center;
+  padding: 16px;
+}
+
+.model-viewer-error {
+  color: #f87171;
+}
+
+.model-viewer-error .error-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f87171;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #7c5cff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Static Notice ---- */
+.static-notice {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  background: #2a2a3e;
+  border-left: 4px solid #7c5cff;
+  border-radius: 6px;
+  color: #aaa;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ---- File Picker ---- */
+.file-picker {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.file-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: #1e1e30;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.file-meta strong {
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.file-meta span {
+  color: #888;
+  font-size: 12px;
+}
+
+/* ---- Register Form ---- */
+.register-form {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #2a2a3e;
+  border-radius: 8px;
+}
+
+.register-form h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.register-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.register-form input,
+.register-form textarea {
+  padding: 8px 10px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #12121f;
+  color: #e0e0e0;
+  font-size: 13px;
+}
+
+.register-form input:focus,
+.register-form textarea:focus {
+  border-color: #7c5cff;
+  outline: none;
+}
+
+
+/* ---- Library Status Panel ---- */
+.library-status-panel {
+  margin-bottom: 16px;
+}
+
+.library-status-panel h2 {
+  margin-bottom: 6px;
+}
+
+/* ---- Scan Results Panel ---- */
+.scan-results-panel {
+  margin-bottom: 16px;
+}
+
+.scan-results-panel .list-card {
+  border-left: 3px solid #7c5cff;
+}
+
+.warning-text {
+  color: #fbbf24;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ---- Badges ---- */
+.badge-temp {
+  background: #374151;
+  color: #9ca3af;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.badge-local {
+  background: #064e3b;
+  color: #6ee7b7;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+/* ---- Lazy loading fallback ---- */
+.lazy-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: #888;
+}
+
+.lazy-loading span {
+  font-size: 14px;
+}
+
+/* ---- Small button variant ---- */
+.button.small {
+  padding: 4px 12px;
+  font-size: 12px;
+}

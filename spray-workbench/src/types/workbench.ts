@@ -28,10 +28,13 @@ export type AiVolumeLevel = "natural" | "enhanced_body" | "enhanced_mecha";
 export type AiEdgeHighlight = "none" | "subtle" | "strong";
 export type AiPreserveOriginal = "strict" | "slight_beautify";
 export type ComfyImageMode = "img2img" | "reference_image" | "control_workflow";
+export type ModelSourceType = "temporary" | "localFile" | "remoteUrl";
+export type ModelFileExtension = "glb" | "gltf" | "stl" | "obj" | "other";
 
 export interface WorkbenchData {
   version: 1;
   models: ScaleModel[];
+  modelAssets?: ModelAsset[];
   paints: PaintColor[];
   colorSchemes: ColorScheme[];
   sprayLogs: SprayLog[];
@@ -290,4 +293,31 @@ export interface FutureThreePreviewConfig {
   enabled: false;
   glbUrl?: string;
   materialSlots?: Record<string, string>;
+}
+
+export interface ModelAsset {
+  id: string;
+  name: string;
+  projectId?: string;
+  physicalModelId?: string;
+  sourceType: ModelSourceType;
+  fileName: string;
+  fileExtension: ModelFileExtension;
+  fileSizeBytes?: number;
+  localRelativePath?: string;
+  remoteUrl?: string;
+  thumbnailImageId?: string;
+  notes?: string;
+  tags?: string[];
+  previewSettings?: ModelPreviewSettings;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModelPreviewSettings {
+  background?: "dark" | "light" | "grid";
+  autoRotate?: boolean;
+  showGrid?: boolean;
+  showAxes?: boolean;
+  cameraDistance?: number;
 }

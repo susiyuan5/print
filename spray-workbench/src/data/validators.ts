@@ -20,6 +20,36 @@ const aiVolumeLevelSchema = z.enum(["natural", "enhanced_body", "enhanced_mecha"
 const aiEdgeHighlightSchema = z.enum(["none", "subtle", "strong"]);
 const aiPreserveOriginalSchema = z.enum(["strict", "slight_beautify"]);
 const comfyImageModeSchema = z.enum(["img2img", "reference_image", "control_workflow"]);
+const modelSourceTypeSchema = z.enum(["temporary", "localFile", "remoteUrl"]);
+const modelFileExtensionSchema = z.enum(["glb", "gltf", "stl", "obj", "other"]);
+
+const modelPreviewSettingsSchema = z.object({
+  background: z.enum(["dark", "light", "grid"]).optional(),
+  autoRotate: z.boolean().optional(),
+  showGrid: z.boolean().optional(),
+  showAxes: z.boolean().optional(),
+  cameraDistance: z.number().optional(),
+}).optional();
+
+const modelAssetSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  projectId: z.string().optional(),
+  physicalModelId: z.string().optional(),
+  sourceType: modelSourceTypeSchema,
+  fileName: z.string().min(1),
+  fileExtension: modelFileExtensionSchema,
+  fileSizeBytes: z.number().optional(),
+  localRelativePath: z.string().optional(),
+  remoteUrl: z.string().optional(),
+  thumbnailImageId: z.string().optional(),
+  notes: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  previewSettings: modelPreviewSettingsSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
 
 const stepTemplateSchema = z.object({
   id: z.string().min(1),
@@ -36,6 +66,7 @@ const stepTemplateSchema = z.object({
 
 export const workbenchDataSchema = z.object({
   version: z.literal(1),
+  modelAssets: z.array(modelAssetSchema).optional(),
   models: z.array(z.object({
     id: z.string().min(1),
     name: z.string().min(1),

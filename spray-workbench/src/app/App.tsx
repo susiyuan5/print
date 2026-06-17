@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from "react-router-dom";
-import { Beaker, Boxes, Briefcase, Brush, Database, Gauge, Layers3, Palette, SwatchBook } from "lucide-react";
+import { lazy, Suspense } from "react";
+import { Beaker, Box, Boxes, Briefcase, Brush, Database, Gauge, Layers3, Palette, SwatchBook } from "lucide-react";
 import { DashboardPage } from "../pages/DashboardPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { ModelsPage } from "../pages/ModelsPage";
@@ -9,12 +10,14 @@ import { SprayLogsPage } from "../pages/SprayLogsPage";
 import { ColorPreviewPage } from "../pages/ColorPreviewPage";
 import { ColorLabPage } from "../pages/ColorLabPage";
 import { DataPage } from "../pages/DataPage";
+const ModelAssetsPage = lazy(() => import("../pages/ModelAssetsPage").then((m) => ({ default: m.ModelAssetsPage })));
 import { useWorkbench } from "../state/WorkbenchProvider";
 
 const navItems = [
   { to: "/", label: "仪表盘", icon: Gauge },
   { to: "/projects", label: "项目中心", icon: Briefcase },
   { to: "/models", label: "模型管理", icon: Boxes },
+  { to: "/model-assets", label: "3D 模型仓库", icon: Box },
   { to: "/colors", label: "颜色管理", icon: Palette },
   { to: "/schemes", label: "配色方案", icon: SwatchBook },
   { to: "/color-lab", label: "配色实验室", icon: Beaker },
@@ -59,6 +62,7 @@ export function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/models" element={<ModelsPage />} />
+          <Route path="/model-assets" element={<ModelAssetsPage />} />
           <Route path="/colors" element={<ColorsPage />} />
           <Route path="/schemes" element={<ColorSchemesPage />} />
           <Route path="/color-lab" element={<ColorLabPage />} />
@@ -70,3 +74,4 @@ export function App() {
     </div>
   );
 }
+          <Route path="/model-assets" element={<Suspense fallback={<div className="lazy-loading"><div className="spinner" /><span>正在加载 3D 模型仓库...</span></div>}><ModelAssetsPage /></Suspense>} />
