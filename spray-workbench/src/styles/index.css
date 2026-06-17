@@ -450,3 +450,202 @@ textarea { min-height: 92px; resize: vertical; }
   padding: 4px 12px;
   font-size: 12px;
 }
+
+
+/* ---- Model Gallery ---- */
+.model-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.model-card {
+  border: 1px solid #2a2a3e;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #12121f;
+  transition: border-color 0.15s;
+}
+
+.model-card:hover {
+  border-color: #7c5cff;
+}
+
+.model-card-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #1a1a2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.model-card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.model-card-placeholder {
+  font-size: 32px;
+  color: #444;
+  font-weight: 700;
+}
+
+.model-card-3d-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(124, 92, 255, 0.85);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.model-card-3d-btn:hover {
+  background: rgba(124, 92, 255, 1);
+}
+
+.model-card-body {
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.model-card-name {
+  font-size: 14px;
+  color: #e0e0e0;
+}
+
+.model-card-meta {
+  font-size: 11px;
+  color: #777;
+}
+
+.model-card-status {
+  font-size: 11px;
+  color: #7c5cff;
+}
+
+.model-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.model-card-tags span {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #2a2a3e;
+  color: #9ca3af;
+}
+
+.model-card-note {
+  font-size: 11px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ---- Gallery Filters ---- */
+.gallery-filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.gallery-search {
+  flex: 1;
+  min-width: 160px;
+  padding: 8px 12px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #12121f;
+  color: #e0e0e0;
+  font-size: 13px;
+}
+
+.gallery-search:focus {
+  border-color: #7c5cff;
+  outline: none;
+}
+
+.gallery-filters select {
+  padding: 8px 10px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #12121f;
+  color: #e0e0e0;
+  font-size: 13px;
+}
+
+.gallery-count {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* ---- Mode Badge Panel ---- */
+.mode-badge-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+/* ---- 3D Modal ---- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #12121f;
+  border: 1px solid #333;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.modal-3d {
+  width: 80vw;
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #2a2a3e;
+  background: #0a0a14;
+}
+
+.modal-header strong {
+  flex: 1;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.modal-3d-viewer {
+  flex: 1;
+  min-height: 0;
+}

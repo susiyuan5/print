@@ -4,4 +4,10 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: "/print/",
   plugins: [react()],
+  server: {
+    proxy: {
+      "/api": "http://localhost:3456",
+      "/local-assets": "http://localhost:3456",
+    },
+  },
 });

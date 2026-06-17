@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 import { ConfirmDelete } from "../components/ui/ConfirmDelete";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Field } from "../components/ui/Field";
@@ -6,11 +6,36 @@ import { ImageGallery } from "../components/ui/ImageGallery";
 import { ImagePreview } from "../components/ui/ImagePreview";
 import { ImageUploader, type UploadedImagePayload } from "../components/ui/ImageUploader";
 import { PageHeader } from "../components/ui/PageHeader";
+import { ModelViewer } from '../components/model/ModelViewer';
 import { useWorkbench } from "../state/WorkbenchProvider";
 import type { ModelStatus, ScaleModel } from "../types/workbench";
 import { joinTags, splitTags, statusLabels } from "../utils/colors";
 import { nowIso } from "../utils/dates";
 import { createId } from "../utils/ids";
+
+
+interface LocalModel { folderName:string;name:string;brand:string;series:string;scale:string;status:string;tags:string[];note:string;coverUrl:string|null;modelUrl:string|null;modelExt:string|null }
+const GS: Record<string,string> = { planned:'计划中',in_progress:'制作中',painting:'喷涂中',painted:'已喷涂',finished:'已完成',archived:'已归档',unknown:'未知' }
+
+function LocalModelGallery({ models }: { models: LocalModel[] }) {
+  const [sq,setSq]=useState(''); const [sf,setSf]=useState('all'); const [tf,setTf]=useState(''); const [pv,setPv]=useState<LocalModel|null>(null)
+  const at=useMemo(()=>{const s=new Set<string>();models.forEach(m=>m.tags.forEach(t=>s.add(t)));return Array.from(s).sort()},[models])
+  const fl=useMemo(()=>models.filter(m=>{return (!sq||m.name.toLowerCase().includes(sq.toLowerCase())||m.folderName.toLowerCase().includes(sq.toLowerCase()))&&(sf==='all'||m.status===sf)&&(!tf||m.tags.includes(tf))}),[models,sq,sf,tf])
+  const as=useMemo(()=>Array.from(new Set(models.map(m=>m.status))),[models])
+  return (<>
+    <div className="gallery-filters">
+      <input className="gallery-search" type="text" placeholder="搜索模型名称..." value={sq} onChange={e=>setSq(e.target.value)}/>
+      <select value={sf} onChange={e=>setSf(e.target.value)}><option value="all">所有状态</option>{as.map(s=><option key={s} value={s}>{GS[s]??s}</option>)}</select>
+      <select value={tf} onChange={e=>setTf(e.target.value)}><option value="">所有标签</option>{at.map(t=><option key={t} value={t}>{t}</option>)}</select>
+      <span className="gallery-count">{fl.length}/{models.length} 个模型</span>
+    </div>
+    {fl.length===0?<EmptyState title="没有匹配的模型" description="请调整搜索或筛选条件。"/>:<div className="model-gallery">{fl.map(model=><article className="model-card" key={model.folderName}>
+      <div className="model-card-cover">{model.coverUrl?<img src={model.coverUrl} alt={model.name} loading="lazy" onError={e=>{(e.target as HTMLImageElement).style.display="none"}}/>:null}{model.modelUrl&&<button className="model-card-3d-btn" type="button" onClick={()=>setPv(model)} title="预览 3D">3D</button>}</div>
+      <div className="model-card-body"><strong className="model-card-name">{model.name}</strong><span className="model-card-meta">{[model.brand,model.series,model.scale].filter(Boolean).join(" · ")||"未填写信息"}</span><span className="model-card-status">{GS[model.status]??model.status}</span>{model.tags.length>0&&<div className="model-card-tags">{model.tags.slice(0,4).map(tag=><span key={tag}>{tag}</span>)}</div>}{model.note&&<p className="model-card-note">{model.note}</p>}</div>
+    </article>)}</div>}
+    {pv&&pv.modelUrl&&<div className="modal-overlay" onClick={()=>setPv(null)}><div className="modal-content modal-3d" onClick={e=>e.stopPropagation()}><div className="modal-header"><strong>{pv.name}</strong><span className="badge">{pv.modelExt?.toUpperCase()}</span><button className="button ghost" type="button" onClick={()=>setPv(null)}>关闭</button></div><div className="modal-3d-viewer"><ModelViewer modelUrl={pv.modelUrl} fileName={pv.name+"."+pv.modelExt} fileExtension={pv.modelExt??undefined}/></div></div></div>}
+  </>)
+}
 
 const emptyForm = {
   name: "",
@@ -25,6 +50,10 @@ const emptyForm = {
 
 export function ModelsPage() {
   const { data, dispatch } = useWorkbench();
+  const [mode, setMode] = useState<"checking"|"local"|"browser">("checking")
+  const [localModels, setLocalModels] = useState<LocalModel[]>([])
+  useEffect(() => { const c = new AbortController(); fetch("/api/local-models",{signal:c.signal}).then(r=>r.ok?r.json():Promise.reject(r)).then(j=>{if(j.ok&&Array.isArray(j.models)){setLocalModels(j.models);setMode("local")}else setMode("browser")}).catch(()=>setMode("browser")); return ()=>c.abort() }, [])
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const modelImages = data.workshopImages ?? [];
@@ -91,9 +120,13 @@ export function ModelsPage() {
     });
   }
 
+  if (mode === "checking") return (<> <PageHeader title="模型管理" description="正在检测本地模型仓库..." /><div className="lazy-loading"><div className="spinner"/><span>正在检测模式...</span></div> </>)
+  if (mode === "local") return (<> <PageHeader title="模型管理" description={"本地仓库模式 · "+localModels.length+" 个模型"} /><section className="panel mode-badge-panel"><span className="badge badge-local">本地仓库模式</span><span className="muted">读取自本地硬盘模型文件夹</span></section><LocalModelGallery models={localModels}/> </>)
+
   return (
     <>
-      <PageHeader title="模型管理" description="维护模型资料、制作状态、URL 图片和本地图片档案。" />
+      <PageHeader title="模型管理" description="浏览器本地数据模式" />
+      <section className="panel mode-badge-panel"><span className="badge badge-temp">浏览器本地数据模式</span><span className="muted">启动本地服务器可切换到本地仓库模式</span></section>
       <section className="editor-layout">
         <form className="panel form-panel" onSubmit={submit}>
           <h2>{editingId ? "编辑模型" : "新增模型"}</h2>
