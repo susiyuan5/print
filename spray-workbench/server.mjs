@@ -79,3 +79,4 @@ createServer(app).listen(PORT, () => {
   console.log(`Local model server running at http://localhost:${PORT}`);
   console.log(`Serving models from: ${MODEL_ROOT}`);
 });
+const MODEL_ROOT = resolve(process.env.LOCAL_MODEL_ROOT ?? "F:/print");
