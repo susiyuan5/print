@@ -64,6 +64,16 @@ textarea { min-height: 92px; resize: vertical; }
 .target-compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0; }
 .target-compare-grid > div { display: grid; gap: 8px; padding: 12px; border: 1px solid #e3ddd5; border-radius: 8px; background: #fffdfa; }
 .target-compare-grid .swatch { height: 72px; }
+.real-paint-warning { padding: 12px; border-radius: 8px; border: 1px solid #b8874f; background: #fff4df; color: #5f3d18; font-weight: 700; line-height: 1.55; margin-bottom: 14px; }
+.sampling-image { width: 100%; max-height: 360px; object-fit: contain; border-radius: 8px; border: 1px solid #d9d0c5; background: #15181d; cursor: crosshair; margin: 12px 0; }
+.sample-result-card { display: grid; grid-template-columns: 92px 1fr; gap: 12px; align-items: center; padding: 12px; border: 1px solid #e3ddd5; border-radius: 8px; background: #fffdfa; margin: 12px 0; }
+.sample-result-card span, .sample-result-card small { display: block; color: #687079; margin-top: 4px; }
+.estimate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0; }
+.estimate-card, .recommendation-card { display: grid; gap: 8px; padding: 12px; border: 1px solid #e3ddd5; border-radius: 8px; background: #fffdfa; }
+.estimate-card p, .recommendation-card p { margin: 0; color: #555b62; }
+.estimate-card small, .recommendation-card small { color: #687079; }
+.delta-badge { display: inline-flex; width: fit-content; padding: 7px 10px; border-radius: 999px; background: #202124; color: #f5f0e8; font-weight: 700; margin: 8px 0; }
+.recommendation-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin: 12px 0; max-height: 520px; overflow: auto; }
 .recipe-project-summary-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
 .recipe-project-summary { display: grid; gap: 8px; padding: 12px; border: 1px solid #e3ddd5; border-radius: 8px; background: #fffdfa; }
 .empty-state { border: 1px dashed #bbb2a7; padding: 28px; border-radius: 8px; color: #6b6f76; }

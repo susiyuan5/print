@@ -66,6 +66,12 @@ export interface PaintRecipe {
   resultNotes?: string;
   adjustmentNotes?: string;
   isFavorite?: boolean;
+  rgbEstimatedColorHex?: string;
+  pigmentEstimatedColorHex?: string;
+  deltaE?: number;
+  matchNotes?: string;
+  isFinalRecipe?: boolean;
+  correctionNotes?: string;
   createdAt: string;
   updatedAt: string;
 }

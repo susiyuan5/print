@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDelete } from "../components/ui/ConfirmDelete";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Field } from "../components/ui/Field";
@@ -6,6 +6,7 @@ import { ImageUploader, type UploadedImagePayload } from "../components/ui/Image
 import { WorkshopImageView } from "../components/ui/ImageGallery";
 import { PageHeader } from "../components/ui/PageHeader";
 import { useWorkbench } from "../state/WorkbenchProvider";
+import { readLocalImageObjectUrl, restoreImageLibrary } from "../data/fileLibrary";
 import type {
   AiContrastLevel,
   AiEdgeHighlight,
@@ -27,7 +28,6 @@ import { finishLabels, roleLabels } from "../utils/colors";
 import { formatDate, nowIso } from "../utils/dates";
 import { createId } from "../utils/ids";
 import { generateAiRepaintPrompt } from "../utils/aiRepaintPrompt";
-import { compareColors } from "../utils/colorCompare";
 import {
   formatHsl,
   formatRgb,
@@ -39,6 +39,12 @@ import {
   rgbToHsl,
 } from "../utils/colorMath";
 import { computeEstimatedColor, computeRecipeItems, unitModeLabel } from "../utils/paintMixing";
+import { getCanvasPointFromImageClick, sampleCanvasColor, type SampledColor, type SampleSize } from "../utils/imageSampling";
+import { getPerceptualColorInfo } from "../utils/perceptualColor";
+import { compareColors } from "../utils/colorCompare";
+import { computeRecipeEstimate } from "../utils/realPaintMixing";
+import { findNearestPaints, recommendThreePaintRecipes, recommendTwoPaintRecipes, type RecommendationOptions, type RecipeRecommendation } from "../utils/recipeRecommendation";
+import { getWorkshopImageSource } from "../utils/images";
 
 type ColorLabTab = "wheel" | "mix" | "ai";
 
@@ -168,6 +174,16 @@ export function ColorLabPage() {
   const [mixNotes, setMixNotes] = useState(emptyMixNotes);
   const [aiForm, setAiForm] = useState(emptyAiForm);
   const [copyStatus, setCopyStatus] = useState("");
+  const sampleImageRef = useRef<HTMLImageElement | null>(null);
+  const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [sampleImageId, setSampleImageId] = useState("");
+  const [sampleImageUrl, setSampleImageUrl] = useState("");
+  const [sampleError, setSampleError] = useState("");
+  const [sampleSize, setSampleSize] = useState<SampleSize>(3);
+  const [sampledColor, setSampledColor] = useState<SampledColor | null>(null);
+  const [recommendationOptions, setRecommendationOptions] = useState<RecommendationOptions>({ stepPercent: 10, allowTransparent: false, allowMetallic: false });
+  const [nearestPaints, setNearestPaints] = useState<ReturnType<typeof findNearestPaints>>([]);
+  const [recipeRecommendations, setRecipeRecommendations] = useState<RecipeRecommendation[]>([]);
 
   const selectedPaint = data.paints.find((paint) => paint.id === selectedPaintId);
   const baseHex = normalizeHex(manualHex || selectedPaint?.hex || "#2F6F73");
@@ -181,14 +197,161 @@ export function ColorLabPage() {
   const resultColorHex = computeEstimatedColor(computedMixItems, data.paints);
   const resultInfo = colorInfo(resultColorHex);
   const colorComparison = compareColors(mixNotes.targetColorHex, resultColorHex);
+  const recipeEstimate = computeRecipeEstimate(computedMixItems, data.paints);
+  const matchEstimateHex = recipeEstimate.pigmentEstimatedColorHex ?? recipeEstimate.rgbEstimatedColorHex;
+  const pigmentInfo = colorInfo(recipeEstimate.pigmentEstimatedColorHex ?? recipeEstimate.rgbEstimatedColorHex);
+  const targetPerceptualInfo = getPerceptualColorInfo(mixNotes.targetColorHex);
+  const perceptualComparison = compareColors(mixNotes.targetColorHex, matchEstimateHex);
   const recentExperiments = [...(data.colorLabExperiments ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 12);
   const aiPrompts = useMemo(() => generateAiRepaintPrompt(aiForm), [aiForm]);
   const recentAiConcepts = [...(data.aiRepaintConcepts ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 12);
   const selectedSourceImage = (data.workshopImages ?? []).find((image) => image.id === aiForm.sourceImageId);
+  const selectedSampleImage = (data.workshopImages ?? []).find((image) => image.id === sampleImageId);
   const experimentColorOptions = (data.colorLabExperiments ?? []).flatMap((experiment) => [
     ...(experiment.resultColorHex ? [{ label: `${experiment.name} · 结果色`, hex: experiment.resultColorHex }] : []),
     ...(experiment.generatedColors ?? []).map((color) => ({ label: `${experiment.name} · ${color.role}`, hex: color.hex })),
   ]);
+
+  useEffect(() => {
+    if (!selectedSampleImage) {
+      setSampleImageUrl("");
+      setSampleError("");
+      return;
+    }
+    let objectUrl = "";
+    let cancelled = false;
+    setSampleError("");
+
+    if (selectedSampleImage.storageType === "localFile") {
+      restoreImageLibrary()
+        .then((library) => readLocalImageObjectUrl(library.value, selectedSampleImage.localRelativePath))
+        .then((result) => {
+          if (cancelled) {
+            if (result.ok && result.value) URL.revokeObjectURL(result.value);
+            return;
+          }
+          if (result.ok && result.value) {
+            objectUrl = result.value;
+            setSampleImageUrl(result.value);
+          } else {
+            setSampleImageUrl("");
+            setSampleError(result.error ?? "图片文件未连接或已移动，请重新选择图片仓库文件夹。");
+          }
+        });
+    } else {
+      setSampleImageUrl(getWorkshopImageSource(selectedSampleImage));
+    }
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [selectedSampleImage]);
+
+  function handleSampleImageLoad(event: React.SyntheticEvent<HTMLImageElement>) {
+    const image = event.currentTarget;
+    const canvas = sampleCanvasRef.current;
+    if (!canvas) return;
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d");
+    if (context) context.drawImage(image, 0, 0);
+  }
+
+  function handleSampleImageClick(event: React.MouseEvent<HTMLImageElement>) {
+    const image = sampleImageRef.current;
+    const canvas = sampleCanvasRef.current;
+    if (!image || !canvas) return;
+    try {
+      const point = getCanvasPointFromImageClick(image, event);
+      setSampledColor(sampleCanvasColor(canvas, point.x, point.y, sampleSize));
+      setSampleError("");
+    } catch {
+      setSampleError("该外部图片受跨域限制，无法取色，请使用上传图片或本地图片仓库图片。");
+    }
+  }
+
+  function attachSamplingImages(uploaded: UploadedImagePayload[]) {
+    const timestamp = nowIso();
+    const firstId = createId("image");
+    uploaded.forEach((image, index) => {
+      const id = index === 0 ? firstId : createId("image");
+      dispatch({
+        type: "addWorkshopImage",
+        image: {
+          id,
+          title: image.title || "参考取色图片",
+          notes: "来源：配漆工作流参考图取色",
+          capturedAt: "",
+          ...image,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      });
+    });
+    setSampleImageId(firstId);
+    setNotice("已上传参考图，可以点击图片取色。");
+  }
+
+  function saveSampledColorToPaint() {
+    if (!sampledColor) return;
+    dispatch({
+      type: "upsertPaint",
+      paint: {
+        id: createId("paint"),
+        name: `图片取色 ${timestampLabel()}`,
+        hex: sampledColor.hex,
+        finish: "other",
+        notes: `来源：参考图取色\n采样：${sampledColor.sampleSize}x${sampledColor.sampleSize}\n${sampledColor.rgb}\n${sampledColor.hsl}`,
+      },
+    });
+    setNotice("已把取色结果保存到颜色库。");
+  }
+
+  function runRecipeRecommendation() {
+    const targetHex = normalizeHex(mixNotes.targetColorHex);
+    setNearestPaints(findNearestPaints(targetHex, data.paints, recommendationOptions));
+    setRecipeRecommendations([
+      ...recommendTwoPaintRecipes(targetHex, data.paints, recommendationOptions),
+      ...recommendThreePaintRecipes(targetHex, data.paints, recommendationOptions),
+    ]);
+    setNotice("已生成推荐接近配方。推荐结果只是试色起点，需要实际喷涂确认。");
+  }
+
+  function applyRecommendation(recommendation: RecipeRecommendation) {
+    setMixNotes({ ...mixNotes, unitMode: "percent" });
+    setMixItems(recommendation.items.map((item) => ({ ...item, amount: item.computedPercent ?? item.amount })));
+    setNotice("已套用推荐配方到当前配漆工作流，请先试色确认。");
+  }
+
+  function saveRecommendationAsRecipe(recommendation: RecipeRecommendation) {
+    const timestamp = nowIso();
+    dispatch({
+      type: "addPaintRecipe",
+      recipe: {
+        id: createId("recipe"),
+        name: `推荐接近配方 ${timestampLabel()}`,
+        projectId: mixProjectId || undefined,
+        modelId: mixNotes.modelId || undefined,
+        resultColorHex: recommendation.pigmentEstimatedColorHex ?? recommendation.rgbEstimatedColorHex,
+        estimatedColorHex: recommendation.pigmentEstimatedColorHex ?? recommendation.rgbEstimatedColorHex,
+        targetColorHex: normalizeHex(mixNotes.targetColorHex),
+        items: recommendation.items,
+        unitMode: "percent",
+        targetTotalMl: Number(mixNotes.targetTotalMl) || undefined,
+        testImageIds: [],
+        resultNotes: "由目标色推荐生成。该配方只是试色起点，不代表真实喷涂一定一致。",
+        matchNotes: `DeltaE ${recommendation.deltaE ?? "未知"}，${recommendation.scoreLabel}`,
+        rgbEstimatedColorHex: recommendation.rgbEstimatedColorHex,
+        pigmentEstimatedColorHex: recommendation.pigmentEstimatedColorHex,
+        deltaE: recommendation.deltaE,
+        isFavorite: false,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    });
+    setNotice("已保存推荐接近配方。");
+  }
 
   function updateSelectedPaint(paintId: string) {
     setSelectedPaintId(paintId);
@@ -405,8 +568,8 @@ export function ColorLabPage() {
       name: mixNotes.name.trim() || `配漆配方 ${timestampLabel()}`,
       projectId: mixProjectId || undefined,
       modelId: mixNotes.modelId || undefined,
-      resultColorHex,
-      estimatedColorHex: resultColorHex,
+      resultColorHex: matchEstimateHex,
+      estimatedColorHex: matchEstimateHex,
       targetColorHex: normalizeHex(mixNotes.targetColorHex),
       items: computedMixItems,
       unitMode: mixNotes.unitMode,
@@ -421,6 +584,11 @@ export function ColorLabPage() {
       testImageIds,
       resultNotes: mixNotes.sprayEffect.trim() || mixNotes.failureIssues.trim() || mixNotes.other.trim() || undefined,
       adjustmentNotes: mixNotes.adjustmentNotes.trim() || undefined,
+      rgbEstimatedColorHex: recipeEstimate.rgbEstimatedColorHex,
+      pigmentEstimatedColorHex: recipeEstimate.pigmentEstimatedColorHex,
+      deltaE: perceptualComparison.deltaE,
+      matchNotes: `色差评分基于屏幕颜色数据，不代表喷涂后一定一致。接近度：${perceptualComparison.matchScore} / 100，${perceptualComparison.matchLabel}`,
+      correctionNotes: mixNotes.adjustmentNotes.trim() || undefined,
       isFavorite: mixNotes.isFavorite,
       createdAt: existing?.createdAt ?? timestamp,
       updatedAt: timestamp,
@@ -655,6 +823,109 @@ export function ColorLabPage() {
         </section>
       ) : activeTab === "mix" ? (
         <section className="color-lab-layout">
+          <div className="panel form-panel">
+            <h2>现实喷涂配色增强</h2>
+            <div className="real-paint-warning">
+              现实喷涂颜色会受品牌、底色、遮盖力、稀释比例、喷涂层数、光油、干燥变化和拍照光源影响。以下结果只作为试色起点和配方记录参考，不能替代实际试色。
+            </div>
+            <div className="form-grid">
+              <Field label="目标色 HEX"><input value={mixNotes.targetColorHex} onChange={(event) => setMixNotes({ ...mixNotes, targetColorHex: event.target.value })} /></Field>
+              <Field label="选择图片档案">
+                <select value={sampleImageId} onChange={(event) => setSampleImageId(event.target.value)}>
+                  <option value="">请选择图片</option>
+                  {(data.workshopImages ?? []).map((image) => <option key={image.id} value={image.id}>{image.title || image.id}</option>)}
+                </select>
+              </Field>
+              <Field label="采样范围">
+                <select value={sampleSize} onChange={(event) => setSampleSize(Number(event.target.value) as SampleSize)}>
+                  <option value={1}>1px</option>
+                  <option value={3}>3x3 平均</option>
+                  <option value={5}>5x5 平均</option>
+                </select>
+              </Field>
+              <Field label="比例步进">
+                <select value={recommendationOptions.stepPercent ?? 10} onChange={(event) => setRecommendationOptions({ ...recommendationOptions, stepPercent: Number(event.target.value) as 5 | 10 })}>
+                  <option value={10}>10%</option>
+                  <option value={5}>5%</option>
+                </select>
+              </Field>
+            </div>
+            <ImageUploader label="上传参考图" fileNamePrefix="color-sample" onUpload={attachSamplingImages} />
+            {sampleImageUrl && <img ref={sampleImageRef} className="sampling-image" src={sampleImageUrl} alt="参考图取色" onLoad={handleSampleImageLoad} onClick={handleSampleImageClick} crossOrigin="anonymous" />}
+            <canvas ref={sampleCanvasRef} hidden />
+            {sampleError && <p className="error-text">{sampleError}</p>}
+            {sampledColor && (
+              <div className="sample-result-card">
+                <span className="large-swatch" style={{ background: sampledColor.hex }} />
+                <div>
+                  <strong>{sampledColor.hex}</strong>
+                  <span>{sampledColor.rgb}</span>
+                  <span>{sampledColor.hsl}</span>
+                  <small>{sampledColor.lab}</small>
+                  <small>{sampledColor.oklab}</small>
+                  <div className="button-row">
+                    <button className="button primary" type="button" onClick={() => setMixNotes({ ...mixNotes, targetColorHex: sampledColor.hex })}>设为目标色</button>
+                    <button className="button ghost" type="button" onClick={saveSampledColorToPaint}>保存到颜色库</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="estimate-grid">
+              <article className="estimate-card">
+                <span className="large-swatch" style={{ background: recipeEstimate.rgbEstimatedColorHex }} />
+                <strong>RGB 屏幕预估</strong>
+                <small>{resultInfo.hex} · {resultInfo.rgb} · {resultInfo.hsl}</small>
+                <p>基于屏幕颜色加权平均，仅作低级参考。</p>
+              </article>
+              <article className="estimate-card">
+                <span className="large-swatch" style={{ background: recipeEstimate.pigmentEstimatedColorHex ?? "#808080" }} />
+                <strong>颜料模型预估</strong>
+                <small>{recipeEstimate.pigmentEstimatedColorHex ? `${pigmentInfo.hex} · ${pigmentInfo.rgb} · ${pigmentInfo.hsl}` : "颜料模型预估暂不可用"}</small>
+                <p>{recipeEstimate.warning}</p>
+              </article>
+            </div>
+            <div className="delta-badge">DeltaE {perceptualComparison.deltaE ?? "不可用"} · 接近度 {perceptualComparison.matchScore}/100 · {perceptualComparison.matchLabel}</div>
+            <p className="muted">色差评分基于屏幕颜色数据，不代表喷涂后一定一致。推荐结果只能作为试色起点，需要实际试色确认。</p>
+            <div className="timeline-list">
+              <strong>以下为经验建议，仅用于试色方向参考。</strong>
+              {perceptualComparison.suggestions.map((suggestion) => <span key={suggestion}>{suggestion}</span>)}
+            </div>
+            <div className="form-grid">
+              <label className="check-row"><input type="checkbox" checked={Boolean(recommendationOptions.onlyFavorite)} onChange={(event) => setRecommendationOptions({ ...recommendationOptions, onlyFavorite: event.target.checked })} /> 只用常用颜色</label>
+              <label className="check-row"><input type="checkbox" checked={Boolean(recommendationOptions.allowTransparent)} onChange={(event) => setRecommendationOptions({ ...recommendationOptions, allowTransparent: event.target.checked })} /> 允许透明色</label>
+              <label className="check-row"><input type="checkbox" checked={Boolean(recommendationOptions.allowMetallic)} onChange={(event) => setRecommendationOptions({ ...recommendationOptions, allowMetallic: event.target.checked })} /> 允许金属 / 珠光</label>
+              <Field label="限制品牌"><input value={recommendationOptions.brand ?? ""} onChange={(event) => setRecommendationOptions({ ...recommendationOptions, brand: event.target.value || undefined })} /></Field>
+            </div>
+            <button className="button primary" type="button" onClick={runRecipeRecommendation}>推荐接近配方</button>
+            {nearestPaints.length > 0 && <div className="recommendation-grid">{nearestPaints.map(({ paint, deltaE, match }) => (
+              <article className="recommendation-card" key={paint.id}>
+                <span className="large-swatch" style={{ background: paint.hex }} />
+                <strong>{paint.name}</strong>
+                <small>{paint.hex} · DeltaE {deltaE} · {match.label}</small>
+                <button className="button ghost" type="button" onClick={() => setMixItems([{ paintId: paint.id, amount: 100, computedPercent: 100 }])}>套用单色</button>
+              </article>
+            ))}</div>}
+            {recipeRecommendations.length > 0 && <div className="recommendation-grid">{recipeRecommendations.map((recommendation) => (
+              <article className="recommendation-card" key={recommendation.id}>
+                <div className="mini-swatches">
+                  <span style={{ background: normalizeHex(mixNotes.targetColorHex) }} />
+                  <span style={{ background: recommendation.rgbEstimatedColorHex }} />
+                  <span style={{ background: recommendation.pigmentEstimatedColorHex ?? recommendation.rgbEstimatedColorHex }} />
+                </div>
+                <strong>{recommendation.type === "two_color" ? "两色推荐配方" : "三色推荐配方"}</strong>
+                {recommendation.items.map((item) => {
+                  const paint = data.paints.find((candidate) => candidate.id === item.paintId);
+                  return <small key={item.paintId}>{paint?.name ?? "未知颜色"}：{item.computedPercent?.toFixed(0)}%</small>;
+                })}
+                <small>DeltaE {recommendation.deltaE ?? "不可用"} · 接近度 {recommendation.score}/100 · {recommendation.scoreLabel}</small>
+                <p>{recommendation.suggestions[0]}</p>
+                <div className="button-row">
+                  <button className="button primary" type="button" onClick={() => applyRecommendation(recommendation)}>套用到当前配方</button>
+                  <button className="button ghost" type="button" onClick={() => saveRecommendationAsRecipe(recommendation)}>保存为配方</button>
+                </div>
+              </article>
+            ))}</div>}
+          </div>
           <div className="panel form-panel">
             <h2>配漆工作流</h2>
             <p className="muted">记录真实喷涂配漆比例、目标总量、稀释参数和试色结论。该颜色为屏幕预估，不代表真实颜料混合和实际喷涂效果。</p>
