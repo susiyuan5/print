@@ -13,6 +13,7 @@ import type {
   SprayLog,
   SprayProject,
   SprayStepTemplate,
+  SprayReview,
   WorkbenchData,
   WorkshopImage,
 } from "../types/workbench";
@@ -45,6 +46,8 @@ export type WorkbenchAction =
   | { type: "addPaintRecipe"; recipe: PaintRecipe }
   | { type: "updatePaintRecipe"; recipe: PaintRecipe }
   | { type: "deletePaintRecipe"; id: string }
+  | { type: "upsertSprayReview"; review: SprayReview }
+  | { type: "deleteSprayReview"; id: string }
   | { type: "upsertProductOpportunity"; product: ProductOpportunity }
   | { type: "deleteProductOpportunity"; id: string }
   | { type: "upsertMarketSource"; source: MarketSource }
@@ -140,6 +143,7 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
           sprayLogIds: project.sprayLogIds.filter((id) => id !== action.id),
         })),
         workshopImages: (data.workshopImages ?? []).map((image) => image.sprayLogId === action.id ? { ...image, sprayLogId: undefined } : image),
+        sprayReviews: (data.sprayReviews ?? []).map((review) => review.sprayLogId === action.id ? { ...review, sprayLogId: undefined } : review),
       });
     case "upsertProject":
       return touch({
@@ -157,6 +161,7 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
         colorLabExperiments: (data.colorLabExperiments ?? []).map((experiment) => experiment.projectId === action.id ? { ...experiment, projectId: undefined } : experiment),
         aiRepaintConcepts: (data.aiRepaintConcepts ?? []).map((concept) => concept.projectId === action.id ? { ...concept, projectId: undefined } : concept),
         paintRecipes: (data.paintRecipes ?? []).map((recipe) => recipe.projectId === action.id ? { ...recipe, projectId: undefined } : recipe),
+        sprayReviews: (data.sprayReviews ?? []).map((review) => review.projectId === action.id ? { ...review, projectId: undefined } : review),
       });
     case "addWorkshopImage":
       return touch({ ...data, workshopImages: [action.image, ...(data.workshopImages ?? [])] });
@@ -182,6 +187,7 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
           ...recipe,
           testImageIds: recipe.testImageIds.filter((id) => id !== action.id),
         })),
+        sprayReviews: (data.sprayReviews ?? []).map((review) => ({ ...review, imageIds: review.imageIds.filter((id) => id !== action.id) })),
       });
     case "upsertTemplate":
       return touch({
@@ -210,7 +216,11 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
     case "updatePaintRecipe":
       return touch({ ...data, paintRecipes: (data.paintRecipes ?? []).map((item) => item.id === action.recipe.id ? action.recipe : item) });
     case "deletePaintRecipe":
-      return touch({ ...data, paintRecipes: (data.paintRecipes ?? []).filter((item) => item.id !== action.id) });
+      return touch({ ...data, paintRecipes: (data.paintRecipes ?? []).filter((item) => item.id !== action.id), sprayReviews: (data.sprayReviews ?? []).map((review) => review.recipeId === action.id ? { ...review, recipeId: undefined } : review) });
+    case "upsertSprayReview":
+      return touch({ ...data, sprayReviews: (data.sprayReviews ?? []).some((item) => item.id === action.review.id) ? (data.sprayReviews ?? []).map((item) => item.id === action.review.id ? action.review : item) : [action.review, ...(data.sprayReviews ?? [])] });
+    case "deleteSprayReview":
+      return touch({ ...data, sprayReviews: (data.sprayReviews ?? []).filter((item) => item.id !== action.id) });
     case "upsertProductOpportunity":
       return touch({ ...data, productOpportunities: (data.productOpportunities ?? []).some((item) => item.id === action.product.id) ? (data.productOpportunities ?? []).map((item) => item.id === action.product.id ? action.product : item) : [action.product, ...(data.productOpportunities ?? [])] });
     case "deleteProductOpportunity":

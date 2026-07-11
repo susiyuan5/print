@@ -7,6 +7,11 @@ import { inferColorFamily, inferTemperature } from "../utils/colors";
 export const STORAGE_KEY = "spray-workbench:data:v1";
 
 export type DataSource = "localStorage" | "sample";
+const DB_NAME = "spray-workbench:data";
+const STORE = "workspace";
+const DATA_KEY = "current";
+const SNAPSHOTS_KEY = "snapshots";
+const MAX_SNAPSHOTS = 10;
 
 export interface LoadedData {
   data: WorkbenchData;
@@ -51,6 +56,8 @@ export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
     marketSources: data.marketSources ?? [],
     licenseRecords: data.licenseRecords ?? [],
     productTestRecords: data.productTestRecords ?? [],
+    sprayReviews: data.sprayReviews ?? [],
+    version: 2,
   };
 }
 
@@ -73,6 +80,41 @@ export function saveData(data: WorkbenchData) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeWorkbenchData(data), null, 2));
 }
 
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(STORE);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function readStore<T>(db: IDBDatabase, key: string): Promise<T | undefined> {
+  return new Promise((resolve, reject) => { const request = db.transaction(STORE).objectStore(STORE).get(key); request.onsuccess = () => resolve(request.result as T | undefined); request.onerror = () => reject(request.error); });
+}
+
+export async function loadIndexedData(): Promise<WorkbenchData | undefined> {
+  if (typeof indexedDB === "undefined") return undefined;
+  const db = await openDb();
+  try { const value = await readStore<unknown>(db, DATA_KEY); return value ? normalizeWorkbenchData(parseWorkbenchData(value)) : undefined; } finally { db.close(); }
+}
+
+export async function saveIndexedData(data: WorkbenchData) {
+  if (typeof indexedDB === "undefined") return;
+  const normalized = normalizeWorkbenchData(data);
+  const db = await openDb();
+  try {
+    const existing = await readStore<Array<{ savedAt: string; data: WorkbenchData }>>(db, SNAPSHOTS_KEY) ?? [];
+    await new Promise<void>((resolve, reject) => { const tx = db.transaction(STORE, "readwrite"); tx.objectStore(STORE).put(normalized, DATA_KEY); tx.objectStore(STORE).put([{ savedAt: new Date().toISOString(), data: normalized }, ...existing].slice(0, MAX_SNAPSHOTS), SNAPSHOTS_KEY); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+  } finally { db.close(); }
+}
+
+export async function loadSnapshots() {
+  if (typeof indexedDB === "undefined") return [] as Array<{ savedAt: string; data: WorkbenchData }>;
+  const db = await openDb();
+  try { return await readStore<Array<{ savedAt: string; data: WorkbenchData }>>(db, SNAPSHOTS_KEY) ?? []; } finally { db.close(); }
+}
+
 export function resetData() {
   const data = normalizeWorkbenchData(sampleData);
   saveData(data);
@@ -80,7 +122,8 @@ export function resetData() {
 }
 
 export function downloadJson(data: WorkbenchData) {
-  const blob = new Blob([JSON.stringify(normalizeWorkbenchData(data), null, 2)], { type: "application/json" });
+  const payload = { exportedAt: new Date().toISOString(), data: normalizeWorkbenchData(data), imageManifest: (data.workshopImages ?? []).map(({ id, storageType, localRelativePath, title }) => ({ id, storageType, localRelativePath, title })) };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

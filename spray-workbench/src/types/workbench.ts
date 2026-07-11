@@ -21,6 +21,7 @@ export type PreviewShape = "car" | "aircraft" | "robot" | "part";
 export type ProjectStatus = "planned" | "in_progress" | "painting" | "reviewing" | "finished" | "archived";
 export type ImageStorageType = "dataUrl" | "localFile" | "remoteUrl";
 export type ColorLabExperimentType = "color_harmony" | "paint_mix";
+export type ReviewIssueTag = "too_warm" | "too_cool" | "too_light" | "too_dark" | "too_saturated" | "too_muted" | "poor_coverage" | "rough_surface" | "runs" | "other";
 export type AiShadowLevel = "low" | "medium" | "high";
 export type AiHighlightLevel = "low" | "medium" | "high";
 export type AiContrastLevel = "natural" | "high" | "comic";
@@ -32,7 +33,7 @@ export type ModelSourceType = "temporary" | "localFile" | "remoteUrl";
 export type ModelFileExtension = "glb" | "gltf" | "stl" | "obj" | "other";
 
 export interface WorkbenchData {
-  version: 1;
+  version: 2;
   models: ScaleModel[];
   modelAssets?: ModelAsset[];
   paints: PaintColor[];
@@ -48,6 +49,32 @@ export interface WorkbenchData {
   marketSources?: MarketSource[];
   licenseRecords?: LicenseRecord[];
   productTestRecords?: ProductTestRecord[];
+  sprayReviews?: SprayReview[];
+  updatedAt: string;
+}
+
+export interface ReviewRecommendation {
+  summary: string;
+  colorAdjustment: string;
+  processAdjustment: string;
+  generatedAt: string;
+}
+
+export interface SprayReview {
+  id: string;
+  projectId?: string;
+  recipeId?: string;
+  sprayLogId?: string;
+  name: string;
+  targetColorHex?: string;
+  resultColorHex?: string;
+  deltaE?: number;
+  issueTags: ReviewIssueTag[];
+  observation?: string;
+  conclusion?: string;
+  recommendation: ReviewRecommendation;
+  imageIds: string[];
+  createdAt: string;
   updatedAt: string;
 }
 

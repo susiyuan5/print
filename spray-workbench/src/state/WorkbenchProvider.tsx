@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useState } from "react";
-import { loadData, saveData, type DataSource } from "../data/storage";
+import { loadData, loadIndexedData, saveData, saveIndexedData, type DataSource } from "../data/storage";
 import type { WorkbenchData } from "../types/workbench";
 import { workbenchReducer, type WorkbenchAction } from "./workbenchReducer";
 
@@ -18,11 +18,26 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   const [data, dispatch] = useReducer(workbenchReducer, loaded.data);
   const [source, setSource] = useState<DataSource>(loaded.source);
   const [notice, setNotice] = useState<string | undefined>(loaded.warning);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    if (!hydrated) return;
     saveData(data);
+    void saveIndexedData(data);
     setSource("localStorage");
-  }, [data]);
+  }, [data, hydrated]);
+
+  useEffect(() => {
+    let active = true;
+    void loadIndexedData().then((indexed) => {
+      if (!active) return;
+      if (indexed && indexed.updatedAt > data.updatedAt) dispatch({ type: "replace", data: indexed });
+      setHydrated(true);
+    }).catch(() => { if (active) setHydrated(true); });
+    return () => { active = false; };
+  // Load once: this also migrates the old localStorage record on the next save.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const value = useMemo(
     () => ({ data, dispatch, source, notice, setNotice }),

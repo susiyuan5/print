@@ -27,6 +27,7 @@ const productRoleSchema = z.enum(["traffic", "profit", "search", "seasonal", "re
 const licenseStatusSchema = z.enum(["original", "commercial-license", "permission-required", "personal-use-only", "unknown"]);
 const riskLevelSchema = z.enum(["low", "medium", "high", "blocked"]);
 const productStatusSchema = z.enum(["watching", "candidate", "test-print", "test-selling", "approved", "rejected"]);
+const reviewIssueTagSchema = z.enum(["too_warm", "too_cool", "too_light", "too_dark", "too_saturated", "too_muted", "poor_coverage", "rough_surface", "runs", "other"]);
 
 const modelPreviewSettingsSchema = z.object({
   background: z.enum(["dark", "light", "grid"]).optional(),
@@ -74,7 +75,7 @@ const stepTemplateSchema = z.object({
 });
 
 export const workbenchDataSchema = z.object({
-  version: z.literal(1),
+  version: z.union([z.literal(1), z.literal(2)]),
   modelAssets: z.array(modelAssetSchema).optional(),
   models: z.array(z.object({
     id: z.string().min(1),
@@ -291,9 +292,11 @@ export const workbenchDataSchema = z.object({
   marketSources: z.array(z.object({ id: z.string().min(1), name: z.string(), url: z.string(), market: z.string(), keyword: z.string(), observedPrice: z.string().optional(), reviewCount: z.number().optional(), salesSignal: z.string().optional(), engagementSignal: z.string().optional(), summary: z.string(), confidence: z.enum(["high", "medium", "low"]), checkedAt: z.string() })).optional(),
   licenseRecords: z.array(z.object({ id: z.string().min(1), productId: z.string().optional(), modelName: z.string(), designer: z.string().optional(), platform: z.string().optional(), modelUrl: z.string().optional(), licenseType: licenseStatusSchema, physicalSalesAllowed: z.boolean().optional(), platformRestrictions: z.string().optional(), attributionRequired: z.boolean().optional(), activeSubscriptionRequired: z.boolean().optional(), purchaseDate: z.string().optional(), proofOfLicense: z.string().optional(), lastReviewedAt: z.string().optional() })).optional(),
   productTestRecords: z.array(z.object({ id: z.string().min(1), productId: z.string(), printSuccessRate: z.number().optional(), printTimeHours: z.number().optional(), postProcessingMinutes: z.number().optional(), packedWeightGrams: z.number().optional(), actualShippingCostCad: z.number().optional(), videoViews: z.number().optional(), favoriteRate: z.number().optional(), inquiries: z.number().optional(), orders: z.number().optional(), returns: z.number().optional(), customerFeedback: z.string().optional(), updatedAt: z.string() })).optional(),
+  sprayReviews: z.array(z.object({ id: z.string().min(1), projectId: z.string().optional(), recipeId: z.string().optional(), sprayLogId: z.string().optional(), name: z.string().min(1), targetColorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(), resultColorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(), deltaE: z.number().optional(), issueTags: z.array(reviewIssueTagSchema), observation: z.string().optional(), conclusion: z.string().optional(), recommendation: z.object({ summary: z.string(), colorAdjustment: z.string(), processAdjustment: z.string(), generatedAt: z.string() }), imageIds: z.array(z.string()), createdAt: z.string(), updatedAt: z.string() })).optional(),
   updatedAt: z.string(),
 });
 
 export function parseWorkbenchData(value: unknown): WorkbenchData {
-  return workbenchDataSchema.parse(value);
+  const parsed = workbenchDataSchema.parse(value);
+  return { ...parsed, version: 2, sprayReviews: parsed.sprayReviews ?? [] } as WorkbenchData;
 }
