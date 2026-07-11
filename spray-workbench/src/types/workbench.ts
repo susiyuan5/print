@@ -96,6 +96,8 @@ export interface ProductOpportunity {
   modelIds?: string[]; modelAssetIds?: string[]; projectIds?: string[]; colorSchemeIds?: string[]; sprayLogIds?: string[]; paintRecipeIds?: string[];
   costSettings?: ProductCostSettings;
   statusHistory?: ProductStatusHistory[];
+  productionStatus?: "unprinted" | "queued" | "prototyping" | "prototype-complete" | "test-selling" | "selling" | "paused";
+  radarItemId?: string; modelAssetId?: string; radarProvenance?: { title: string; platforms: string[]; sourceLinks: string[]; firstSeenAt: string; totalScore?: number };
 }
 
 export interface ProductCostSettings { supportMaterialCostCad?: number; platformFeePercent?: number; paymentFeePercent?: number; listingFeeCad?: number; advertisingCostCad?: number; advertisingPercent?: number; failureLossPercent?: number; electricityCostCad?: number; depreciationPerHourCad?: number; manualLaborMinutes?: number; laborHourlyCad?: number; paintFinishingCostCad?: number; returnLossAllowanceCad?: number; }
