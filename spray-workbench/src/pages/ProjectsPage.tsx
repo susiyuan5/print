@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { ConfirmDelete } from "../components/ui/ConfirmDelete";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Field } from "../components/ui/Field";
@@ -169,6 +170,7 @@ export function ProjectsPage() {
                 const projectImages = images.filter((image) => image.projectId === project.id || project.imageIds.includes(image.id));
                 const aiConcepts = (data.aiRepaintConcepts ?? []).filter((concept) => concept.projectId === project.id);
                 const projectRecipes = (data.paintRecipes ?? []).filter((recipe) => recipe.projectId === project.id);
+                const projectReviews = (data.sprayReviews ?? []).filter((review) => review.projectId === project.id);
                 return (
                   <article className="list-card project-card" key={project.id}>
                     <div className="card-top"><strong>{project.name}</strong><span className="badge">{projectStatusLabels[project.status]}</span></div>
@@ -177,6 +179,9 @@ export function ProjectsPage() {
                     <span>配色方案：{project.colorSchemeIds.map((id) => data.colorSchemes.find((scheme) => scheme.id === id)?.name).filter(Boolean).join("，") || "未关联"}</span>
                     <span>喷涂记录：{project.sprayLogIds.map((id) => data.sprayLogs.find((log) => log.id === id)?.title).filter(Boolean).join("，") || "未关联"}</span>
                     <div className="tag-row">{project.styleKeywords.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                    <h3>喷涂复盘</h3>
+                    <p>{projectReviews.length ? `已完成 ${projectReviews.length} 次复盘；最新建议：${projectReviews[0].recommendation.summary}` : "尚未复盘，完成试喷后记录目标色、实际效果与改进建议。"}</p>
+                    <div className="button-row"><Link className="button ghost" to="/reviews">进入复盘 / 打印工单</Link></div>
                     <h3>项目图片</h3>
                     <ImageGallery
                       images={projectImages}

@@ -1,7 +1,7 @@
 import type { WorkbenchData } from "../types/workbench";
 
 export const sampleData: WorkbenchData = {
-  version: 1,
+  version: 2,
   updatedAt: "2026-06-16T00:00:00.000Z",
   models: [
     {

@@ -3,7 +3,7 @@ import { ConfirmDelete } from "../components/ui/ConfirmDelete";
 import { Field } from "../components/ui/Field";
 import { PageHeader } from "../components/ui/PageHeader";
 import { checkLocalImageExists, connectImageLibrary, isFileSystemAccessSupported, restoreImageLibrary } from "../data/fileLibrary";
-import { downloadJson, normalizeWorkbenchData, resetData } from "../data/storage";
+import { downloadJson, loadSnapshots, normalizeWorkbenchData, resetData } from "../data/storage";
 import { parseWorkbenchData } from "../data/validators";
 import { useWorkbench } from "../state/WorkbenchProvider";
 import type { PaintLayerType, SprayStepTemplate } from "../types/workbench";
@@ -31,6 +31,7 @@ export function DataPage() {
   const [missingReport, setMissingReport] = useState("");
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [templateForm, setTemplateForm] = useState(emptyTemplate);
+  const [snapshots, setSnapshots] = useState<Array<{ savedAt: string; data: typeof data }>>([]);
   const storageUsage = estimateLocalStorageUsage();
   const imageStats = useMemo(() => {
     const images = data.workshopImages ?? [];
@@ -58,12 +59,15 @@ export function DataPage() {
     });
   }, []);
 
+  useEffect(() => { void loadSnapshots().then(setSnapshots).catch(() => setSnapshots([])); }, [data.updatedAt]);
+
   async function importFile(file?: File) {
     if (!file) return;
     try {
       const text = await file.text();
       if (!window.confirm("导入 JSON 会覆盖当前本地数据，确认继续吗？")) return;
-      const parsed = normalizeWorkbenchData(parseWorkbenchData(JSON.parse(text)));
+      const raw = JSON.parse(text) as { data?: unknown };
+      const parsed = normalizeWorkbenchData(parseWorkbenchData(raw.data ?? raw));
       dispatch({ type: "replace", data: parsed });
       setError("");
       setNotice("JSON 导入成功，数据已自动保存到浏览器本地。");
@@ -160,6 +164,9 @@ export function DataPage() {
           </button>
           <input ref={inputRef} hidden type="file" accept="application/json,.json" onChange={(event) => importFile(event.target.files?.[0])} />
         </div>
+        <h3>可恢复快照</h3>
+        <p className="muted">自动保留最近 10 次保存；恢复前会再次确认。</p>
+        <div className="item-list">{snapshots.slice(0, 10).map((snapshot) => <div className="list-card" key={snapshot.savedAt}><span>{snapshot.savedAt}</span><button className="button ghost" type="button" onClick={() => { if (window.confirm("恢复此快照会覆盖当前数据，是否继续？")) { dispatch({ type: "replace", data: snapshot.data }); setNotice("已恢复快照。"); } }}>恢复</button></div>)}</div>
       </section>
       <section className="panel data-panel">
         <h2>图片仓库</h2>

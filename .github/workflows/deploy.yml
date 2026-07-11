@@ -32,6 +32,12 @@ jobs:
       - name: 构建
         run: npm run build
         working-directory: spray-workbench
+      - name: 测试
+        run: npm test
+        working-directory: spray-workbench
+      - name: 依赖安全审计
+        run: npm audit --omit=dev --audit-level=high
+        working-directory: spray-workbench
       - name: 上传 Pages 构建产物
         uses: actions/upload-pages-artifact@v3
         with:

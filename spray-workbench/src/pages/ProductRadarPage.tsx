@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Field } from "../components/ui/Field";
 import { ConfirmDelete } from "../components/ui/ConfirmDelete";
 import { useWorkbench } from "../state/WorkbenchProvider";
 import type { ProductOpportunity, ProductMarket, LicenseStatus, RiskLevel, ProductStatus, ProductRole } from "../types/workbench";
 import { createId } from "../utils/ids";
+import { transitionProduct } from "../utils/productRules";
 
 const markets: ProductMarket[] = ["Canada", "USA", "UK", "EU"];
 const categories = ["Adult Desk Fidgets", "Gaming and Desk Accessories", "Planters and Home Decor", "Personalized Gifts", "Local Problem-Solving Parts"];
@@ -74,7 +76,7 @@ export function ProductRadarPage() {
       demandScore: form.demand, competitionScore: form.competition, profitScore: form.profit, shippingScore: form.shipping, videoScore: form.video, customizationScore: form.customization, repeatabilityScore: form.repeatability,
       materialCostCad: Number(form.material) || undefined, packagingCostCad: Number(form.packaging) || undefined, shippingCostCad: Number(form.shippingCost) || undefined, sellingPriceCad: Number(form.price) || undefined, printTimeHours: Number(form.time) || undefined,
       licenseStatus: form.license, licenseEvidence: form.evidence || undefined, ipRisk: form.ip, complianceRisk: form.compliance, riskTags: [], sourceLinks: [], evidenceNotes: linkedNotes,
-      status: form.status, lastCheckedAt: new Date().toISOString().slice(0, 10),
+      status: form.status === "watching" ? "watching" : "candidate", lastCheckedAt: new Date().toISOString().slice(0, 10),
     };
     if (product.status === "approved" && (!product.licenseEvidence || !["original", "commercial-license"].includes(product.licenseStatus))) { setNotice("无法批准：必须先记录可验证的商用授权证据。"); return; }
     dispatch({ type: "upsertProductOpportunity", product }); setForm(blank());
@@ -82,6 +84,11 @@ export function ProductRadarPage() {
 
   function seed() {
     starter.forEach((name, index) => dispatch({ type: "upsertProductOpportunity", product: { id: createId("radar"), name, category: categories[Math.min(4, Math.floor(index / 3))], markets, productRole: index < 2 ? "traffic" : index < 10 ? "profit" : "search", description: "Initial candidate — no STL file or commercial license is attached.", targetCustomer: "To be validated", customerProblem: "To be researched", customizationOptions: [], demandScore: 60, competitionScore: 50, profitScore: 60, shippingScore: 70, videoScore: 55, customizationScore: 60, repeatabilityScore: 60, licenseStatus: "unknown", ipRisk: "low", complianceRisk: "low", riskTags: [], sourceLinks: [], evidenceNotes: [], status: "watching", lastCheckedAt: new Date().toISOString().slice(0, 10) } }));
+  }
+  function move(product: ProductOpportunity, status: ProductStatus) {
+    const result = transitionProduct(product, status, data.productTestRecords ?? [], data.salesTestRecords ?? [], data.licenseRecords ?? []);
+    if (!result.ok) { setNotice(result.message); return; }
+    dispatch({ type: "upsertProductOpportunity", product: { ...product, status, statusHistory: [...(product.statusHistory ?? []), { status, changedAt: new Date().toISOString() }] } });
   }
 
   return <>
@@ -117,7 +124,7 @@ export function ProductRadarPage() {
           <div className="profit-grid"><div><span>净利润</span><strong>{money ? `CA$${money.net.toFixed(2)}` : "—"}</strong></div><div><span>净利率</span><strong>{money ? `${money.margin.toFixed(0)}%` : "—"}</strong></div><div><span>每机器小时</span><strong>{money?.hourly ? `CA$${money.hourly.toFixed(2)}` : "—"}</strong></div></div>
           <details><summary>评分解释</summary><div className="score-breakdown"><div><strong>加分</strong>{parts.additions.map(([label, amount]) => <span key={label}>+{amount.toFixed(1)} {label}</span>)}</div><div><strong>扣分</strong>{parts.deductions.filter((item) => item[1] > 0).map(([label, amount]) => <span key={label}>-{amount} {label}</span>)}{!parts.deductions.some((item) => item[1] > 0) && <span>无风险扣分</span>}</div></div></details>
           <details><summary>关联、授权与证据</summary>{product.evidenceNotes.map((note) => <p key={note}>{note}</p>)}<p>授权证据：{product.licenseEvidence || "未记录"}</p><p>最后检查：{product.lastCheckedAt || "未记录"}</p></details>
-          <div className="button-row"><button className="button ghost" disabled={blocked} onClick={() => dispatch({ type: "upsertProductOpportunity", product: { ...product, status: "test-print" } })}>进入测试打印</button><button className="button ghost" disabled={blocked} onClick={() => dispatch({ type: "upsertProductOpportunity", product: { ...product, status: "test-selling" } })}>进入测试销售</button><button className="button ghost" disabled={blocked} onClick={() => dispatch({ type: "upsertProductOpportunity", product: { ...product, status: "approved" } })}>批准量产</button><button className="button danger" onClick={() => dispatch({ type: "upsertProductOpportunity", product: { ...product, status: "rejected" } })}>淘汰</button><ConfirmDelete onConfirm={() => dispatch({ type: "deleteProductOpportunity", id: product.id })} /></div>
+          <div className="button-row"><Link className="button ghost" to={`/product-radar/${product.id}`}>产品详情</Link><button className="button ghost" disabled={blocked} onClick={() => move(product, "test-print")}>进入测试打印</button><button className="button ghost" disabled={blocked} onClick={() => move(product, "test-selling")}>进入测试销售</button><button className="button danger" onClick={() => move(product, "rejected")}>淘汰</button><ConfirmDelete onConfirm={() => dispatch({ type: "deleteProductOpportunity", id: product.id })} /></div>
         </article>; })}</div>
       </section>
     </section>

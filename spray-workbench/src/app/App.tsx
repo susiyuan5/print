@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
-import { Beaker, Boxes, Briefcase, Brush, Database, Gauge, Layers3, Palette, Radar, SwatchBook } from "lucide-react";
+import { Beaker, Boxes, Briefcase, Brush, ClipboardCheck, Database, Gauge, Layers3, Palette, Radar, SwatchBook } from "lucide-react";
 import { DashboardPage } from "../pages/DashboardPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { ColorsPage } from "../pages/ColorsPage";
@@ -10,6 +10,8 @@ import { ColorPreviewPage } from "../pages/ColorPreviewPage";
 import { ColorLabPage } from "../pages/ColorLabPage";
 import { DataPage } from "../pages/DataPage";
 import { ProductRadarPage } from "../pages/ProductRadarPage";
+import { ProductDetailPage } from "../pages/ProductDetailPage";
+import { SprayReviewsPage } from "../pages/SprayReviewsPage";
 import { useWorkbench } from "../state/WorkbenchProvider";
 
 const ModelAssetsPage = lazy(() =>
@@ -25,6 +27,7 @@ const navItems = [
   { to: "/schemes", label: "配色方案", icon: SwatchBook },
   { to: "/color-lab", label: "配色实验室", icon: Beaker },
   { to: "/logs", label: "喷涂记录", icon: Brush },
+  { to: "/reviews", label: "喷涂复盘", icon: ClipboardCheck },
   { to: "/preview", label: "颜色预览", icon: Layers3 },
   { to: "/data", label: "数据管理", icon: Database },
 ];
@@ -78,9 +81,11 @@ export function App() {
           <Route path="/schemes" element={<ColorSchemesPage />} />
           <Route path="/color-lab" element={<ColorLabPage />} />
           <Route path="/logs" element={<SprayLogsPage />} />
+          <Route path="/reviews" element={<SprayReviewsPage />} />
           <Route path="/preview" element={<ColorPreviewPage />} />
           <Route path="/data" element={<DataPage />} />
           <Route path="/product-radar" element={<ProductRadarPage />} />
+          <Route path="/product-radar/:productId" element={<ProductDetailPage />} />
         </Routes>
       </main>
     </div>

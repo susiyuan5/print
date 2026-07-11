@@ -60,13 +60,13 @@ async function scanModels() {
 }
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: [/^http:\/\/localhost(?::\d+)?$/, /^http:\/\/127\.0\.0\.1(?::\d+)?$/] }));
 
 // API: list models
 app.get("/api/local-models", async (_req, res) => {
   try {
     const models = await scanModels();
-    res.json({ ok: true, models, root: MODEL_ROOT });
+    res.json({ ok: true, models });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -75,7 +75,7 @@ app.get("/api/local-models", async (_req, res) => {
 // Static: serve model assets
 app.use("/local-assets", express.static(MODEL_ROOT));
 
-createServer(app).listen(PORT, () => {
+createServer(app).listen(PORT, "127.0.0.1", () => {
   console.log(`Local model server running at http://localhost:${PORT}`);
   console.log(`Serving models from: ${MODEL_ROOT}`);
 });

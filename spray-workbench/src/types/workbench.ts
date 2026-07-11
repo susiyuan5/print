@@ -21,6 +21,7 @@ export type PreviewShape = "car" | "aircraft" | "robot" | "part";
 export type ProjectStatus = "planned" | "in_progress" | "painting" | "reviewing" | "finished" | "archived";
 export type ImageStorageType = "dataUrl" | "localFile" | "remoteUrl";
 export type ColorLabExperimentType = "color_harmony" | "paint_mix";
+export type ReviewIssueTag = "too_warm" | "too_cool" | "too_light" | "too_dark" | "too_saturated" | "too_muted" | "poor_coverage" | "rough_surface" | "runs" | "other";
 export type AiShadowLevel = "low" | "medium" | "high";
 export type AiHighlightLevel = "low" | "medium" | "high";
 export type AiContrastLevel = "natural" | "high" | "comic";
@@ -32,7 +33,7 @@ export type ModelSourceType = "temporary" | "localFile" | "remoteUrl";
 export type ModelFileExtension = "glb" | "gltf" | "stl" | "obj" | "other";
 
 export interface WorkbenchData {
-  version: 1;
+  version: 2;
   models: ScaleModel[];
   modelAssets?: ModelAsset[];
   paints: PaintColor[];
@@ -48,6 +49,33 @@ export interface WorkbenchData {
   marketSources?: MarketSource[];
   licenseRecords?: LicenseRecord[];
   productTestRecords?: ProductTestRecord[];
+  salesTestRecords?: SalesTestRecord[];
+  sprayReviews?: SprayReview[];
+  updatedAt: string;
+}
+
+export interface ReviewRecommendation {
+  summary: string;
+  colorAdjustment: string;
+  processAdjustment: string;
+  generatedAt: string;
+}
+
+export interface SprayReview {
+  id: string;
+  projectId?: string;
+  recipeId?: string;
+  sprayLogId?: string;
+  name: string;
+  targetColorHex?: string;
+  resultColorHex?: string;
+  deltaE?: number;
+  issueTags: ReviewIssueTag[];
+  observation?: string;
+  conclusion?: string;
+  recommendation: ReviewRecommendation;
+  imageIds: string[];
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -65,7 +93,13 @@ export interface ProductOpportunity {
   licenseStatus: LicenseStatus; licenseSource?: string; designer?: string; licenseEvidence?: string;
   ipRisk: RiskLevel; complianceRisk: RiskLevel; riskTags: string[]; sourceLinks: string[]; evidenceNotes: string[];
   status: ProductStatus; lastCheckedAt?: string;
+  modelIds?: string[]; modelAssetIds?: string[]; projectIds?: string[]; colorSchemeIds?: string[]; sprayLogIds?: string[]; paintRecipeIds?: string[];
+  costSettings?: ProductCostSettings;
+  statusHistory?: ProductStatusHistory[];
 }
+
+export interface ProductCostSettings { supportMaterialCostCad?: number; platformFeePercent?: number; paymentFeePercent?: number; listingFeeCad?: number; advertisingCostCad?: number; advertisingPercent?: number; failureLossPercent?: number; electricityCostCad?: number; depreciationPerHourCad?: number; manualLaborMinutes?: number; laborHourlyCad?: number; paintFinishingCostCad?: number; returnLossAllowanceCad?: number; }
+export interface ProductStatusHistory { status: ProductStatus; changedAt: string; note?: string; }
 
 export interface LicenseRecord {
   id: string; productId?: string; modelName: string; designer?: string; platform?: string; modelUrl?: string; licenseType: LicenseStatus;
@@ -76,10 +110,13 @@ export interface LicenseRecord {
 export interface ProductTestRecord {
   id: string; productId: string; printSuccessRate?: number; printTimeHours?: number; postProcessingMinutes?: number; packedWeightGrams?: number; actualShippingCostCad?: number;
   videoViews?: number; favoriteRate?: number; inquiries?: number; orders?: number; returns?: number; customerFeedback?: string; updatedAt: string;
+  name?: string; modelId?: string; modelAssetId?: string; material?: string; slicerNotes?: string; successfulQuantity?: number; failedQuantity?: number; defects?: string; testDate?: string; result?: "pass" | "revise" | "fail"; notes?: string;
 }
 
+export interface SalesTestRecord { id: string; productId: string; platform: string; periodStart?: string; periodEnd?: string; listingUrl?: string; impressions?: number; views?: number; favorites?: number; inquiries?: number; addToCart?: number; orders?: number; revenueCad?: number; returns?: number; customerFeedback?: string; testPriceCad?: number; advertisingSpendCad?: number; notes?: string; updatedAt: string; }
+
 export interface MarketSource {
-  id: string; name: string; url: string; market: string; keyword: string; observedPrice?: string; reviewCount?: number; salesSignal?: string; engagementSignal?: string;
+  id: string; productId?: string; name: string; url: string; market: string; keyword: string; observedPrice?: string; reviewCount?: number; salesSignal?: string; engagementSignal?: string;
   summary: string; confidence: "high" | "medium" | "low"; checkedAt: string;
 }
 
