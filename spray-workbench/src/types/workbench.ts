@@ -108,11 +108,14 @@ export interface ProductMarketData {
   platforms: string[];
   productLinks: string[];
   capturedAt: string;
+  importedAt?: string;
+  firstDiscoveredAt?: string;
   price?: number;
   currency?: string;
   keywords: string[];
   imageUrl?: string;
   matchedModelAssetId?: string;
+  radarScores?: { heat?: number; competition?: number; printability?: number; profit?: number; total?: number };
 }
 
 export interface ProductImageReference {

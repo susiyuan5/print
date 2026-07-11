@@ -4,8 +4,9 @@ import { resolve } from "node:path";
 
 let context; let page; let state = { status: "未启动", source: "generic", url: "", title: "", lastCaptureAt: null, count: 0, error: null };
 const profileDir = resolve(".local-data/browser-profile");
-const blockedHosts = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/i;
-export function validateUrl(value) { try { const url = new URL(value); if (!/^https?:$/.test(url.protocol) || blockedHosts.test(url.hostname)) return null; return url; } catch { return null; } }
+const blockedHosts = /^(localhost|127\.|0\.0\.0\.0$|\[?::1\]?|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.|169\.254\.|fc|fd|fe80)/i;
+/** Public-web only: shortcut URLs cannot reach files, browser internals, loopback or private networks. */
+export function validateUrl(value) { try { const url = new URL(value); if (!/^https?:$/.test(url.protocol) || blockedHosts.test(url.hostname) || url.username || url.password) return null; return url; } catch { return null; } }
 export function detectSource(url = "") { const host = new URL(url).hostname.toLowerCase(); return ["etsy","amazon","tiktok","pinterest","facebook-marketplace","makerworld","printables","myminifactory","cults3d"].find((id) => host.includes(id.replace("-marketplace", ""))) ?? "generic"; }
 export function searchUrl(source, query) { const q = encodeURIComponent(query); return ({ etsy:`https://www.etsy.com/search?q=${q}`, amazon:`https://www.amazon.com/s?k=${q}`, tiktok:`https://www.tiktok.com/search?q=${q}`, pinterest:`https://www.pinterest.com/search/pins/?q=${q}`, makerworld:`https://makerworld.com/en/search/models?keyword=${q}`, printables:`https://www.printables.com/search/models?q=${q}`, myminifactory:`https://www.myminifactory.com/search/?query=${q}`, cults3d:`https://cults3d.com/en/search?q=${q}` })[source]; }
 export async function launch() { if (context) return state; await mkdir(profileDir, { recursive: true }); context = await chromium.launchPersistentContext(profileDir, { headless: false, viewport: { width: 1440, height: 900 } }); page = context.pages()[0] ?? await context.newPage(); page.on("close", () => { page = undefined; state.status = "页面已关闭"; }); state = { ...state, status: "浏览器运行中", error: null }; return state; }

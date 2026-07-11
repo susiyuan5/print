@@ -16,7 +16,11 @@ function isLegacyStarterProduct(product: ProductOpportunity) {
     && product.description.startsWith("初始候选：")
     && !product.radarItemId
     && !product.radarProvenance
-    && product.sourceLinks.length === 0;
+    && product.sourceLinks.length === 0
+    && product.evidenceNotes.length === 0
+    && !(product.modelIds?.length || product.modelAssetIds?.length || product.modelAssetId)
+    && !(product.projectIds?.length || product.colorSchemeIds?.length || product.sprayLogIds?.length)
+    && !(product.statusHistory?.length || product.productionStatus || product.sourceImages?.length || product.prototypeImageIds?.length);
 }
 
 export type DataSource = "localStorage" | "sample";

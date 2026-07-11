@@ -12,4 +12,13 @@ describe("legacy product cleanup", () => {
 
     expect(normalizeWorkbenchData(data).productOpportunities?.map((product) => product.id)).toEqual(["imported"]);
   });
+
+  it("is idempotent and preserves a manually edited demo-named product", () => {
+    const data = structuredClone(sampleData);
+    data.productOpportunities = [{ id: "manual", name: "机械齿轮解压玩具", category: "x", markets: ["Canada"], productRole: "profit", description: "初始候选：尚未关联模型文件或市场证据。", targetCustomer: "", customerProblem: "", customizationOptions: [], demandScore: 60, competitionScore: 50, profitScore: 60, shippingScore: 70, videoScore: 55, customizationScore: 60, repeatabilityScore: 60, licenseStatus: "unknown", ipRisk: "low", complianceRisk: "low", riskTags: [], sourceLinks: [], evidenceNotes: ["用户备注"], status: "watching", modelAssetId: "model-1", productionStatus: "queued" }];
+    const once = normalizeWorkbenchData(data);
+    const twice = normalizeWorkbenchData(once);
+    expect(once.productOpportunities?.map((product) => product.id)).toEqual(["manual"]);
+    expect(twice.productOpportunities).toEqual(once.productOpportunities);
+  });
 });

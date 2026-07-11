@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { createServer } from "node:http";
 import { createAdapters } from "./server/trend-sources/index.mjs";
-import { browserStatus, capture, detectSource, launch, open, screenshot, stop } from "./server/browser-capture.mjs";
+import { browserStatus, capture, detectSource, launch, open, screenshot, stop, validateUrl } from "./server/browser-capture.mjs";
 import { canonicalUrl, findDuplicate, matchModels, mergeInto, normalizeText } from "./server/trend-core.mjs";
 import { readJson, writeAtomicJson } from "./server/atomic-json.mjs";
 
@@ -20,7 +20,7 @@ let trendState = await readJson(TREND_DB, initialTrendState);
 trendState.pendingCaptures ??= []; trendState.duplicateReviews ??= []; trendState.captureHistory ??= []; trendState.blockedKeywords ??= [];
 const saveTrendState = () => writeAtomicJson(TREND_DB, trendState);
 const captureById = (id) => trendState.pendingCaptures.find((capture) => capture.id === id);
-const validItem = (item) => { const errors = []; if (!item.title?.trim()) errors.push("缺少标题"); if (!item.source?.trim()) errors.push("缺少来源"); try { const url = new URL(item.url); if (!/^https?:$/.test(url.protocol)) errors.push("商品链接必须是 http 或 https"); } catch { errors.push("商品链接无效"); } return errors; };
+const validItem = (item) => { const errors = []; if (!item.title?.trim()) errors.push("缺少标题"); if (!item.source?.trim()) errors.push("缺少来源"); if (!validateUrl(item.url)) errors.push("商品链接必须是公网 http 或 https"); return errors; };
 function importCapture(capture, selectedIndexes = [], edits = {}, forceSeparate = false) { const errors = []; let imported = 0; let skipped = 0; let reviews = 0; const now = new Date().toISOString(); for (const index of selectedIndexes) { const raw = { ...capture.items[index], ...(edits[index] ?? {}) }; const validation = validItem(raw); if (validation.length) { errors.push({ index, message: validation.join("；") }); continue; } const title = raw.title.trim(); const duplicate = forceSeparate ? undefined : findDuplicate(raw, trendState.items); if (duplicate?.confidence === "high") { mergeInto(duplicate.item, raw, now); skipped += 1; continue; } if (duplicate?.confidence === "medium") { trendState.duplicateReviews.push({ id: randomUUID(), raw, existingItemId: duplicate.item.id, score: duplicate.score, reasons: duplicate.reasons, status: "pending", createdAt: now }); reviews += 1; continue; } trendState.items.push({ id: randomUUID(), title, normalizedTitle: normalizeText(title), description: raw.description, imageUrl: raw.imageUrl, images: raw.imageUrl ? [{ url: raw.imageUrl, attribution: raw.attribution ?? raw.source, sourceUrl: raw.url, capturedAt: now }] : [], sources: [{ platform: raw.source, url: canonicalUrl(raw.url) || raw.url, externalId: raw.externalId, discoveredAt: now, price: raw.price, currency: raw.currency, views: raw.views, likes: raw.likes, reviews: raw.reviews }], category: raw.category, keywords: raw.keywords ?? [], heatScore: undefined, competitionScore: undefined, printabilityScore: undefined, profitScore: undefined, totalScore: undefined, recommendation: "watch", status: "new", ipRisk: "unknown", matchedModelAssetIds: [], rejectedModelAssetIds: [], firstSeenAt: now, lastSeenAt: now }); imported += 1; } return { imported, skipped, reviews, errors }; }
 
 async function scanModels() {

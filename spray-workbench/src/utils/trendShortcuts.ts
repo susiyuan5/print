@@ -1,0 +1,91 @@
+export type TrendShortcutGroup = "model-ranking" | "market-validation";
+
+export interface TrendShortcut {
+  id: string;
+  group: TrendShortcutGroup;
+  label: string;
+  platform: string;
+  url: string;
+  keyword?: string;
+  description: string;
+}
+
+export interface CustomTrendShortcut {
+  id: string;
+  label: string;
+  platform: string;
+  url: string;
+  description: string;
+}
+
+export interface TrendShortcutPreferences {
+  lastOpenedId?: string;
+  lastOpenedAt?: string;
+  recentIds: string[];
+  hiddenIds: string[];
+  order: string[];
+  custom: CustomTrendShortcut[];
+}
+
+export const AMAZON_KEYWORDS = ["desk organizer", "controller stand", "headphone hanger", "cable organizer", "pegboard accessories", "replacement knob"];
+export const ETSY_KEYWORDS = ["3d printed", "3d printed organizer", "3d printed fidget"];
+
+export function buildSearchUrl(origin: string, parameter: string, query: string) {
+  const url = new URL(origin);
+  url.searchParams.set(parameter, query);
+  return url.toString();
+}
+
+export const officialTrendShortcuts: TrendShortcut[] = [
+  { id: "cults-trending", group: "model-ranking", platform: "Cults3D", label: "Cults3D · 热门趋势", url: "https://cults3d.com/en/creations/trending", description: "查看近期增长较快的 3D 模型" },
+  { id: "cults-best-sellers", group: "model-ranking", platform: "Cults3D", label: "Cults3D · 畅销模型", url: "https://cults3d.com/en/creations/best-sellers", description: "查看有实际购买信号的模型" },
+  { id: "cults-downloads", group: "model-ranking", platform: "Cults3D", label: "Cults3D · 下载最多", url: "https://cults3d.com/en/creations/latest?direction=desc&sort=downloads_count", description: "查看社区高下载模型" },
+  { id: "cults-search-trends", group: "model-ranking", platform: "Cults3D", label: "Cults3D · 热门搜索", url: "https://cults3d.com/en/search/trends", description: "查看用户正在搜索的关键词" },
+  { id: "printables-featured", group: "model-ranking", platform: "Printables", label: "Printables · 精选模型", url: "https://www.printables.com/model", description: "查看社区近期精选和高互动模型" },
+  { id: "makerworld-popular", group: "model-ranking", platform: "MakerWorld", label: "MakerWorld · 热门模型", url: "https://makerworld.com/en/search/models?keyword=&orderBy=trending", description: "查看近期大量打印的模型" },
+  ...ETSY_KEYWORDS.map((keyword, index) => ({ id: `etsy-${index}`, group: "market-validation" as const, platform: "Etsy", label: ["Etsy · 3D 打印商品", "Etsy · 3D 打印收纳", "Etsy · 3D 打印解压玩具"][index], url: buildSearchUrl("https://www.etsy.com/search", "q", keyword), keyword, description: ["验证实体成品是否有人购买", "验证收纳和桌面用品需求", "验证互动玩具需求"][index] })),
+  { id: "amazon-demand", group: "market-validation", platform: "Amazon", label: "Amazon · 实用产品需求", url: buildSearchUrl("https://www.amazon.com/s", "k", AMAZON_KEYWORDS[0]), keyword: AMAZON_KEYWORDS[0], description: "验证大众实用产品需求" },
+];
+
+const KEY = "trend-radar:shortcut-preferences";
+const empty = (): TrendShortcutPreferences => ({ recentIds: [], hiddenIds: [], order: [], custom: [] });
+
+export function loadShortcutPreferences(): TrendShortcutPreferences {
+  if (typeof localStorage === "undefined") return empty();
+  try { return { ...empty(), ...JSON.parse(localStorage.getItem(KEY) ?? "{}") }; } catch { return empty(); }
+}
+
+export function saveShortcutPreferences(value: TrendShortcutPreferences) {
+  if (typeof localStorage !== "undefined") localStorage.setItem(KEY, JSON.stringify(value));
+}
+
+export function isPublicHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    const privateHost = host === "localhost" || host === "::1" || host === "[::1]" || /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(host) || /^169\.254\./.test(host) || /^fc|^fd|^fe80/i.test(host);
+    return /^https?:$/.test(url.protocol) && !privateHost;
+  } catch { return false; }
+}
+
+export function visibleShortcuts(preferences: TrendShortcutPreferences) {
+  const all = [...officialTrendShortcuts, ...preferences.custom];
+  const position = new Map(preferences.order.map((id, index) => [id, index]));
+  return all.filter((shortcut) => !preferences.hiddenIds.includes(shortcut.id)).sort((a, b) => (position.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (position.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+}
+
+export function recordShortcutOpen(preferences: TrendShortcutPreferences, id: string, at = new Date().toISOString()): TrendShortcutPreferences {
+  return { ...preferences, lastOpenedId: id, lastOpenedAt: at, recentIds: [id, ...preferences.recentIds.filter((item) => item !== id)].slice(0, 6) };
+}
+
+export function calculateRadarCounters(state: { items?: Array<{ status?: string; conversionProductId?: string }>; captureHistory?: Array<{ capturedAt: string; rawItemCount: number }>; pendingCaptures?: Array<{ items: unknown[] }>; duplicateReviews?: Array<{ status?: string }> }) {
+  const latest = state.captureHistory?.[0];
+  return {
+    latestCapturedAt: latest?.capturedAt,
+    latestCaptureCount: latest?.rawItemCount ?? 0,
+    pendingCount: (state.pendingCaptures ?? []).reduce((sum, capture) => sum + capture.items.length, 0),
+    importedCount: state.items?.length ?? 0,
+    duplicateCount: (state.duplicateReviews ?? []).filter((review) => review.status === "pending").length,
+    convertedCount: (state.items ?? []).filter((item) => item.status === "converted" || Boolean(item.conversionProductId)).length,
+  };
+}
