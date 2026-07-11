@@ -56,6 +56,7 @@ export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
     marketSources: data.marketSources ?? [],
     licenseRecords: data.licenseRecords ?? [],
     productTestRecords: data.productTestRecords ?? [],
+    salesTestRecords: data.salesTestRecords ?? [],
     sprayReviews: data.sprayReviews ?? [],
     version: 2,
   };

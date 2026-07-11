@@ -10,6 +10,7 @@ import { ColorPreviewPage } from "../pages/ColorPreviewPage";
 import { ColorLabPage } from "../pages/ColorLabPage";
 import { DataPage } from "../pages/DataPage";
 import { ProductRadarPage } from "../pages/ProductRadarPage";
+import { ProductDetailPage } from "../pages/ProductDetailPage";
 import { SprayReviewsPage } from "../pages/SprayReviewsPage";
 import { useWorkbench } from "../state/WorkbenchProvider";
 
@@ -84,6 +85,7 @@ export function App() {
           <Route path="/preview" element={<ColorPreviewPage />} />
           <Route path="/data" element={<DataPage />} />
           <Route path="/product-radar" element={<ProductRadarPage />} />
+          <Route path="/product-radar/:productId" element={<ProductDetailPage />} />
         </Routes>
       </main>
     </div>

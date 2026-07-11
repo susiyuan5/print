@@ -8,6 +8,7 @@ import type {
   MarketSource,
   LicenseRecord,
   ProductTestRecord,
+  SalesTestRecord,
   PaintColor,
   ScaleModel,
   SprayLog,
@@ -53,7 +54,8 @@ export type WorkbenchAction =
   | { type: "upsertMarketSource"; source: MarketSource }
   | { type: "deleteMarketSource"; id: string }
   | { type: "upsertLicenseRecord"; record: LicenseRecord }
-  | { type: "upsertProductTestRecord"; record: ProductTestRecord };
+  | { type: "upsertProductTestRecord"; record: ProductTestRecord }
+  | { type: "upsertSalesTestRecord"; record: SalesTestRecord };
 
 function touch(data: WorkbenchData): WorkbenchData {
   return { ...data, updatedAt: nowIso() };
@@ -224,7 +226,7 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
     case "upsertProductOpportunity":
       return touch({ ...data, productOpportunities: (data.productOpportunities ?? []).some((item) => item.id === action.product.id) ? (data.productOpportunities ?? []).map((item) => item.id === action.product.id ? action.product : item) : [action.product, ...(data.productOpportunities ?? [])] });
     case "deleteProductOpportunity":
-      return touch({ ...data, productOpportunities: (data.productOpportunities ?? []).filter((item) => item.id !== action.id), licenseRecords: (data.licenseRecords ?? []).filter((item) => item.productId !== action.id), productTestRecords: (data.productTestRecords ?? []).filter((item) => item.productId !== action.id) });
+      return touch({ ...data, productOpportunities: (data.productOpportunities ?? []).filter((item) => item.id !== action.id), licenseRecords: (data.licenseRecords ?? []).filter((item) => item.productId !== action.id), productTestRecords: (data.productTestRecords ?? []).filter((item) => item.productId !== action.id), salesTestRecords: (data.salesTestRecords ?? []).filter((item) => item.productId !== action.id) });
     case "upsertMarketSource":
       return touch({ ...data, marketSources: (data.marketSources ?? []).some((item) => item.id === action.source.id) ? (data.marketSources ?? []).map((item) => item.id === action.source.id ? action.source : item) : [action.source, ...(data.marketSources ?? [])] });
     case "deleteMarketSource":
@@ -233,6 +235,8 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
       return touch({ ...data, licenseRecords: (data.licenseRecords ?? []).some((item) => item.id === action.record.id) ? (data.licenseRecords ?? []).map((item) => item.id === action.record.id ? action.record : item) : [action.record, ...(data.licenseRecords ?? [])] });
     case "upsertProductTestRecord":
       return touch({ ...data, productTestRecords: (data.productTestRecords ?? []).some((item) => item.id === action.record.id) ? (data.productTestRecords ?? []).map((item) => item.id === action.record.id ? action.record : item) : [action.record, ...(data.productTestRecords ?? [])] });
+    case "upsertSalesTestRecord":
+      return touch({ ...data, salesTestRecords: (data.salesTestRecords ?? []).some((item) => item.id === action.record.id) ? (data.salesTestRecords ?? []).map((item) => item.id === action.record.id ? action.record : item) : [action.record, ...(data.salesTestRecords ?? [])] });
     case "upsertModelAsset":
       return touch({
         ...data,

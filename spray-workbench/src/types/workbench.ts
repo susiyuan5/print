@@ -49,6 +49,7 @@ export interface WorkbenchData {
   marketSources?: MarketSource[];
   licenseRecords?: LicenseRecord[];
   productTestRecords?: ProductTestRecord[];
+  salesTestRecords?: SalesTestRecord[];
   sprayReviews?: SprayReview[];
   updatedAt: string;
 }
@@ -92,7 +93,13 @@ export interface ProductOpportunity {
   licenseStatus: LicenseStatus; licenseSource?: string; designer?: string; licenseEvidence?: string;
   ipRisk: RiskLevel; complianceRisk: RiskLevel; riskTags: string[]; sourceLinks: string[]; evidenceNotes: string[];
   status: ProductStatus; lastCheckedAt?: string;
+  modelIds?: string[]; modelAssetIds?: string[]; projectIds?: string[]; colorSchemeIds?: string[]; sprayLogIds?: string[]; paintRecipeIds?: string[];
+  costSettings?: ProductCostSettings;
+  statusHistory?: ProductStatusHistory[];
 }
+
+export interface ProductCostSettings { supportMaterialCostCad?: number; platformFeePercent?: number; paymentFeePercent?: number; listingFeeCad?: number; advertisingCostCad?: number; advertisingPercent?: number; failureLossPercent?: number; electricityCostCad?: number; depreciationPerHourCad?: number; manualLaborMinutes?: number; laborHourlyCad?: number; paintFinishingCostCad?: number; returnLossAllowanceCad?: number; }
+export interface ProductStatusHistory { status: ProductStatus; changedAt: string; note?: string; }
 
 export interface LicenseRecord {
   id: string; productId?: string; modelName: string; designer?: string; platform?: string; modelUrl?: string; licenseType: LicenseStatus;
@@ -103,7 +110,10 @@ export interface LicenseRecord {
 export interface ProductTestRecord {
   id: string; productId: string; printSuccessRate?: number; printTimeHours?: number; postProcessingMinutes?: number; packedWeightGrams?: number; actualShippingCostCad?: number;
   videoViews?: number; favoriteRate?: number; inquiries?: number; orders?: number; returns?: number; customerFeedback?: string; updatedAt: string;
+  name?: string; modelId?: string; modelAssetId?: string; material?: string; slicerNotes?: string; successfulQuantity?: number; failedQuantity?: number; defects?: string; testDate?: string; result?: "pass" | "revise" | "fail"; notes?: string;
 }
+
+export interface SalesTestRecord { id: string; productId: string; platform: string; periodStart?: string; periodEnd?: string; listingUrl?: string; impressions?: number; views?: number; favorites?: number; inquiries?: number; addToCart?: number; orders?: number; revenueCad?: number; returns?: number; customerFeedback?: string; testPriceCad?: number; advertisingSpendCad?: number; notes?: string; updatedAt: string; }
 
 export interface MarketSource {
   id: string; name: string; url: string; market: string; keyword: string; observedPrice?: string; reviewCount?: number; salesSignal?: string; engagementSignal?: string;

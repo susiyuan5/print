@@ -160,7 +160,7 @@ export const workbenchDataSchema = z.object({
     notes: z.string().optional(),
     createdAt: z.string(),
     updatedAt: z.string(),
-  })).optional(),
+  }).passthrough()).optional(),
   workshopImages: z.array(z.object({
     id: z.string().min(1),
     projectId: z.string().optional(),
@@ -288,10 +288,11 @@ export const workbenchDataSchema = z.object({
     printTimeHours: z.number().optional(), materialWeightGrams: z.number().optional(), materialCostCad: z.number().optional(), packagingCostCad: z.number().optional(), shippingCostCad: z.number().optional(), sellingPriceCad: z.number().optional(), grossMargin: z.number().optional(),
     licenseStatus: licenseStatusSchema, licenseSource: z.string().optional(), designer: z.string().optional(), licenseEvidence: z.string().optional(), ipRisk: riskLevelSchema, complianceRisk: riskLevelSchema,
     riskTags: z.array(z.string()), sourceLinks: z.array(z.string()), evidenceNotes: z.array(z.string()), status: productStatusSchema, lastCheckedAt: z.string().optional(),
-  })).optional(),
+  }).passthrough()).optional(),
   marketSources: z.array(z.object({ id: z.string().min(1), name: z.string(), url: z.string(), market: z.string(), keyword: z.string(), observedPrice: z.string().optional(), reviewCount: z.number().optional(), salesSignal: z.string().optional(), engagementSignal: z.string().optional(), summary: z.string(), confidence: z.enum(["high", "medium", "low"]), checkedAt: z.string() })).optional(),
   licenseRecords: z.array(z.object({ id: z.string().min(1), productId: z.string().optional(), modelName: z.string(), designer: z.string().optional(), platform: z.string().optional(), modelUrl: z.string().optional(), licenseType: licenseStatusSchema, physicalSalesAllowed: z.boolean().optional(), platformRestrictions: z.string().optional(), attributionRequired: z.boolean().optional(), activeSubscriptionRequired: z.boolean().optional(), purchaseDate: z.string().optional(), proofOfLicense: z.string().optional(), lastReviewedAt: z.string().optional() })).optional(),
-  productTestRecords: z.array(z.object({ id: z.string().min(1), productId: z.string(), printSuccessRate: z.number().optional(), printTimeHours: z.number().optional(), postProcessingMinutes: z.number().optional(), packedWeightGrams: z.number().optional(), actualShippingCostCad: z.number().optional(), videoViews: z.number().optional(), favoriteRate: z.number().optional(), inquiries: z.number().optional(), orders: z.number().optional(), returns: z.number().optional(), customerFeedback: z.string().optional(), updatedAt: z.string() })).optional(),
+  productTestRecords: z.array(z.object({ id: z.string().min(1), productId: z.string(), printSuccessRate: z.number().optional(), printTimeHours: z.number().optional(), postProcessingMinutes: z.number().optional(), packedWeightGrams: z.number().optional(), actualShippingCostCad: z.number().optional(), videoViews: z.number().optional(), favoriteRate: z.number().optional(), inquiries: z.number().optional(), orders: z.number().optional(), returns: z.number().optional(), customerFeedback: z.string().optional(), updatedAt: z.string() }).passthrough()).optional(),
+  salesTestRecords: z.array(z.object({ id: z.string().min(1), productId: z.string(), platform: z.string(), updatedAt: z.string() }).passthrough()).optional(),
   sprayReviews: z.array(z.object({ id: z.string().min(1), projectId: z.string().optional(), recipeId: z.string().optional(), sprayLogId: z.string().optional(), name: z.string().min(1), targetColorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(), resultColorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(), deltaE: z.number().optional(), issueTags: z.array(reviewIssueTagSchema), observation: z.string().optional(), conclusion: z.string().optional(), recommendation: z.object({ summary: z.string(), colorAdjustment: z.string(), processAdjustment: z.string(), generatedAt: z.string() }), imageIds: z.array(z.string()), createdAt: z.string(), updatedAt: z.string() })).optional(),
   updatedAt: z.string(),
 });
