@@ -1,19 +1,5 @@
-﻿@echo off
-chcp 65001 >nul
-title 喷涂工作台 - 停止服务
-echo ============================================
-echo    喷涂工作台 - 停止服务
-echo ============================================
-echo.
-echo  方式一：直接关闭启动脚本的命令窗口即可停止所有服务。
-echo.
-echo  方式二：按任意键强制结束 node 进程（谨慎使用）。
-echo.
-pause >nul
-
-echo [INFO] 正在结束 node 进程...
-taskkill /f /im node.exe >nul 2>&1
-echo [OK]  node 进程已结束。
-echo.
-echo  如果 Vite 或 npm 仍在运行，请手动关闭相关命令窗口。
-pause
+@echo off
+setlocal
+cd /d "%~dp0"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ports = 3456,5173; $portProcessIds = Get-NetTCPConnection -LocalPort $ports -ErrorAction SilentlyContinue | Where-Object { $_.OwningProcess -ne 0 } | Select-Object -ExpandProperty OwningProcess -Unique; if ($portProcessIds) { Stop-Process -Id $portProcessIds -Force -ErrorAction SilentlyContinue }; Get-Process cmd -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like '*Spray Workbench*' -or $_.MainWindowTitle -like '*npm run dev*' -or $_.MainWindowTitle -like '*npm run local-server*' } | Stop-Process -Force -ErrorAction SilentlyContinue"
+exit /b 0

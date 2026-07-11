@@ -44,7 +44,43 @@ export interface WorkbenchData {
   colorLabExperiments?: ColorLabExperiment[];
   aiRepaintConcepts?: AiRepaintConcept[];
   paintRecipes?: PaintRecipe[];
+  productOpportunities?: ProductOpportunity[];
+  marketSources?: MarketSource[];
+  licenseRecords?: LicenseRecord[];
+  productTestRecords?: ProductTestRecord[];
   updatedAt: string;
+}
+
+export type ProductMarket = "Canada" | "USA" | "UK" | "EU";
+export type ProductRole = "traffic" | "profit" | "search" | "seasonal" | "replacement";
+export type LicenseStatus = "original" | "commercial-license" | "permission-required" | "personal-use-only" | "unknown";
+export type RiskLevel = "low" | "medium" | "high" | "blocked";
+export type ProductStatus = "watching" | "candidate" | "test-print" | "test-selling" | "approved" | "rejected";
+
+export interface ProductOpportunity {
+  id: string; name: string; category: string; markets: ProductMarket[]; productRole: ProductRole;
+  description: string; targetCustomer: string; customerProblem: string; customizationOptions: string[];
+  demandScore: number; competitionScore: number; profitScore: number; shippingScore: number; videoScore: number; customizationScore: number; repeatabilityScore: number;
+  printTimeHours?: number; materialWeightGrams?: number; materialCostCad?: number; packagingCostCad?: number; shippingCostCad?: number; sellingPriceCad?: number; grossMargin?: number;
+  licenseStatus: LicenseStatus; licenseSource?: string; designer?: string; licenseEvidence?: string;
+  ipRisk: RiskLevel; complianceRisk: RiskLevel; riskTags: string[]; sourceLinks: string[]; evidenceNotes: string[];
+  status: ProductStatus; lastCheckedAt?: string;
+}
+
+export interface LicenseRecord {
+  id: string; productId?: string; modelName: string; designer?: string; platform?: string; modelUrl?: string; licenseType: LicenseStatus;
+  physicalSalesAllowed?: boolean; platformRestrictions?: string; attributionRequired?: boolean; activeSubscriptionRequired?: boolean;
+  purchaseDate?: string; proofOfLicense?: string; lastReviewedAt?: string;
+}
+
+export interface ProductTestRecord {
+  id: string; productId: string; printSuccessRate?: number; printTimeHours?: number; postProcessingMinutes?: number; packedWeightGrams?: number; actualShippingCostCad?: number;
+  videoViews?: number; favoriteRate?: number; inquiries?: number; orders?: number; returns?: number; customerFeedback?: string; updatedAt: string;
+}
+
+export interface MarketSource {
+  id: string; name: string; url: string; market: string; keyword: string; observedPrice?: string; reviewCount?: number; salesSignal?: string; engagementSignal?: string;
+  summary: string; confidence: "high" | "medium" | "low"; checkedAt: string;
 }
 
 export interface PaintRecipe {
@@ -305,6 +341,10 @@ export interface ModelAsset {
   fileExtension: ModelFileExtension;
   fileSizeBytes?: number;
   localRelativePath?: string;
+  localPreviewRelativePath?: string;
+  modelFileCount?: number;
+  localInfoText?: string;
+  imageFileCount?: number;
   remoteUrl?: string;
   thumbnailImageId?: string;
   notes?: string;

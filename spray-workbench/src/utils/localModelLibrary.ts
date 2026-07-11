@@ -11,11 +11,15 @@ export interface ScannedModelFile {
   relativePath: string;
   extension: string;
   sizeBytes: number;
+  modelFileCount?: number;
+  previewRelativePath?: string;
+  infoText?: string;
+  imageFileCount?: number;
 }
 
-const SUPPORTED_EXTENSIONS = new Set(["glb", "stl", "obj"]);
-const MAX_SCAN_DEPTH = 4;
-const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024; // 50 MB
+const SUPPORTED_EXTENSIONS = new Set(["glb", "gltf", "stl", "obj"]);
+const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
+const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024;
 
 const unsupportedMessage = "当前浏览器不支持本地模型仓库，请使用 Chrome / Edge，或使用临时文件预览。";
 
@@ -27,12 +31,17 @@ function withTimeout<T>(promise: Promise<T>, message: string, ms = 3000): Promis
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => reject(new Error(message)), ms);
     promise
-      .then((value) => { window.clearTimeout(timer); resolve(value); })
-      .catch((error) => { window.clearTimeout(timer); reject(error); });
+      .then((value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      });
   });
 }
 
-// --- connect ---
 export async function connectModelLibrary(): Promise<ModelLibraryResult<FileSystemDirectoryHandle>> {
   if (!isModelLibrarySupported()) return { ok: false, error: unsupportedMessage };
   try {
@@ -66,7 +75,6 @@ export async function clearModelLibrary(): Promise<void> {
   await clearModelDirectoryHandle();
 }
 
-// --- permission ---
 export async function queryModelDirectoryPermission(handle: FileSystemDirectoryHandle): Promise<ModelLibraryResult<FileSystemDirectoryHandle>> {
   try {
     const state = await withTimeout(handle.queryPermission({ mode: "read" }), "模型仓库权限检查超时。");
@@ -89,43 +97,112 @@ export async function requestModelDirectoryPermission(handle: FileSystemDirector
   }
 }
 
-// --- scan ---
 export async function scanModelFiles(handle: FileSystemDirectoryHandle): Promise<ModelLibraryResult<ScannedModelFile[]>> {
   const scanned: ScannedModelFile[] = [];
   try {
-    await scanDirectory(handle, "", 0, scanned);
+    for await (const [name, entry] of handle.entries()) {
+      if (entry.kind === "directory") {
+        const summary = await summarizeModelFolder(entry as FileSystemDirectoryHandle, name);
+        if (summary) scanned.push(summary);
+      } else if (entry.kind === "file") {
+        const summary = await summarizeRootModelFile(entry as FileSystemFileHandle, name);
+        if (summary) scanned.push(summary);
+      }
+    }
     return { ok: true, value: scanned };
   } catch {
     return { ok: false, error: "扫描模型文件时出错，请确认文件夹权限。" };
   }
 }
 
-async function scanDirectory(
+async function summarizeRootModelFile(fileHandle: FileSystemFileHandle, name: string): Promise<ScannedModelFile | null> {
+  const ext = getExtension(name);
+  if (!SUPPORTED_EXTENSIONS.has(ext)) return null;
+  const file = await fileHandle.getFile();
+  return {
+    fileName: name.replace(/\.[^.]+$/, ""),
+    relativePath: name,
+    extension: ext,
+    sizeBytes: file.size,
+    modelFileCount: 1,
+    previewRelativePath: name,
+  };
+}
+
+async function summarizeModelFolder(handle: FileSystemDirectoryHandle, folderName: string): Promise<ScannedModelFile | null> {
+  const files: Array<{ relativePath: string; extension: string; sizeBytes: number }> = [];
+  const imageFileCount = await countImageFiles(handle, 0);
+  await collectModelFiles(handle, folderName, files, 0);
+  if (files.length === 0) return null;
+  const preferred = files.find((file) => file.extension === "glb" || file.extension === "gltf") ?? files[0];
+  const infoText = await readInfoJsonText(handle, 0);
+  return {
+    fileName: folderName,
+    relativePath: folderName,
+    extension: preferred.extension,
+    sizeBytes: files.reduce((sum, file) => sum + file.sizeBytes, 0),
+    modelFileCount: files.length,
+    previewRelativePath: preferred.relativePath,
+    infoText,
+    imageFileCount,
+  };
+}
+
+async function collectModelFiles(
   handle: FileSystemDirectoryHandle,
   relativePath: string,
+  results: Array<{ relativePath: string; extension: string; sizeBytes: number }>,
   depth: number,
-  results: ScannedModelFile[],
 ): Promise<void> {
-  if (depth > MAX_SCAN_DEPTH) return;
+  if (depth > 4) return;
   for await (const [name, entry] of handle.entries()) {
+    const childPath = `${relativePath}/${name}`;
     if (entry.kind === "file") {
-      const ext = name.split(".").pop()?.toLowerCase() ?? "";
-      if (SUPPORTED_EXTENSIONS.has(ext)) {
-        const fileHandle = entry as FileSystemFileHandle;
-        const file = await fileHandle.getFile();
-        results.push({
-          fileName: name,
-          relativePath: relativePath ? `${relativePath}/${name}` : name,
-          extension: ext,
-          sizeBytes: file.size,
-        });
-      }
+      const ext = getExtension(name);
+      if (!SUPPORTED_EXTENSIONS.has(ext)) continue;
+      const file = await (entry as FileSystemFileHandle).getFile();
+      results.push({ relativePath: childPath, extension: ext, sizeBytes: file.size });
     } else if (entry.kind === "directory") {
-      const dirHandle = entry as FileSystemDirectoryHandle;
-      const childPath = relativePath ? `${relativePath}/${name}` : name;
-      await scanDirectory(dirHandle, childPath, depth + 1, results);
+      await collectModelFiles(entry as FileSystemDirectoryHandle, childPath, results, depth + 1);
     }
   }
+}
+
+function getExtension(name: string) {
+  return name.split(".").pop()?.toLowerCase() ?? "";
+}
+
+async function readInfoJsonText(handle: FileSystemDirectoryHandle, depth: number): Promise<string | undefined> {
+  if (depth > 2) return undefined;
+  for await (const [name, entry] of handle.entries()) {
+    if (entry.kind === "file" && name.toLowerCase() === "info.json") {
+      try {
+        const file = await (entry as FileSystemFileHandle).getFile();
+        return (await file.text()).slice(0, 8192);
+      } catch {
+        return undefined;
+      }
+    }
+  }
+  for await (const [, entry] of handle.entries()) {
+    if (entry.kind !== "directory") continue;
+    const nested = await readInfoJsonText(entry as FileSystemDirectoryHandle, depth + 1);
+    if (nested) return nested;
+  }
+  return undefined;
+}
+
+async function countImageFiles(handle: FileSystemDirectoryHandle, depth: number): Promise<number> {
+  if (depth > 3) return 0;
+  let count = 0;
+  for await (const [name, entry] of handle.entries()) {
+    if (entry.kind === "file" && IMAGE_EXTENSIONS.has(getExtension(name))) {
+      count += 1;
+    } else if (entry.kind === "directory") {
+      count += await countImageFiles(entry as FileSystemDirectoryHandle, depth + 1);
+    }
+  }
+  return count;
 }
 
 export function isLargeFile(sizeBytes: number): boolean {
@@ -138,7 +215,6 @@ export function formatModelFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// --- read ---
 export async function readModelFileByRelativePath(
   handle: FileSystemDirectoryHandle,
   relativePath: string,
@@ -153,7 +229,7 @@ export async function readModelFileByRelativePath(
     const file = await fileHandle.getFile();
     return { ok: true, value: file };
   } catch {
-    return { ok: false, error: "无法读取模型文件，文件可能已移动或删除。" };
+    return { ok: false, error: "无法读取模型文件，文件可能已经移动或删除。" };
   }
 }
 
