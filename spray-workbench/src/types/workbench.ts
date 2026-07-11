@@ -98,8 +98,21 @@ export interface ProductOpportunity {
   statusHistory?: ProductStatusHistory[];
   productionStatus?: "unprinted" | "queued" | "prototyping" | "prototype-complete" | "test-selling" | "selling" | "paused";
   radarItemId?: string; modelAssetId?: string; radarProvenance?: { title: string; platforms: string[]; sourceLinks: string[]; firstSeenAt: string; totalScore?: number };
+  marketData?: ProductMarketData;
   sourceImages?: ProductImageReference[];
   prototypeImageIds?: string[];
+}
+
+/** A factual snapshot carried from Trend Radar; no inferred scores are stored here. */
+export interface ProductMarketData {
+  platforms: string[];
+  productLinks: string[];
+  capturedAt: string;
+  price?: number;
+  currency?: string;
+  keywords: string[];
+  imageUrl?: string;
+  matchedModelAssetId?: string;
 }
 
 export interface ProductImageReference {

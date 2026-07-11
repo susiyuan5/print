@@ -1,10 +1,23 @@
 import { sampleData } from "./sampleData";
 import { sprayStepTemplates } from "./stepTemplates";
 import { parseWorkbenchData } from "./validators";
-import type { ImageStorageType, WorkbenchData } from "../types/workbench";
+import type { ImageStorageType, ProductOpportunity, WorkbenchData } from "../types/workbench";
 import { inferColorFamily, inferTemperature } from "../utils/colors";
 
 export const STORAGE_KEY = "spray-workbench:data:v1";
+export const legacyStarterProductNames = new Set([
+  "机械齿轮解压玩具", "无磁指尖滑块", "手柄支架", "桌下耳机挂架", "模块化理线器",
+  "带托盘花盆", "个性化姓名花盆", "宠物剪影纪念品", "光栅灯罩", "婚礼姓名牌",
+  "洞洞板工具挂架", "房车收纳挂钩", "滑雪手套烘干架", "家电替换旋钮", "特定型号替换卡扣",
+]);
+
+function isLegacyStarterProduct(product: ProductOpportunity) {
+  return legacyStarterProductNames.has(product.name)
+    && product.description.startsWith("初始候选：")
+    && !product.radarItemId
+    && !product.radarProvenance
+    && product.sourceLinks.length === 0;
+}
 
 export type DataSource = "localStorage" | "sample";
 const DB_NAME = "spray-workbench:data";
@@ -52,7 +65,8 @@ export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
     colorLabExperiments: data.colorLabExperiments ?? [],
     aiRepaintConcepts: data.aiRepaintConcepts ?? [],
     paintRecipes: data.paintRecipes ?? [],
-    productOpportunities: data.productOpportunities ?? [],
+    // Only the old, fully identifiable seed records are removed. Imported and manually created products stay intact.
+    productOpportunities: (data.productOpportunities ?? []).filter((product) => !isLegacyStarterProduct(product)),
     marketSources: (data.marketSources ?? []).map((source) => ({ ...source, productId: source.productId ?? (source.id.includes(":") ? source.id.split(":")[0] : undefined) })),
     licenseRecords: data.licenseRecords ?? [],
     productTestRecords: data.productTestRecords ?? [],
