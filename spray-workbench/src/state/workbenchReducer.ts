@@ -54,8 +54,11 @@ export type WorkbenchAction =
   | { type: "upsertMarketSource"; source: MarketSource }
   | { type: "deleteMarketSource"; id: string }
   | { type: "upsertLicenseRecord"; record: LicenseRecord }
+  | { type: "deleteLicenseRecord"; id: string }
   | { type: "upsertProductTestRecord"; record: ProductTestRecord }
-  | { type: "upsertSalesTestRecord"; record: SalesTestRecord };
+  | { type: "deleteProductTestRecord"; id: string }
+  | { type: "upsertSalesTestRecord"; record: SalesTestRecord }
+  | { type: "deleteSalesTestRecord"; id: string };
 
 function touch(data: WorkbenchData): WorkbenchData {
   return { ...data, updatedAt: nowIso() };
@@ -233,10 +236,16 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
       return touch({ ...data, marketSources: (data.marketSources ?? []).filter((item) => item.id !== action.id) });
     case "upsertLicenseRecord":
       return touch({ ...data, licenseRecords: (data.licenseRecords ?? []).some((item) => item.id === action.record.id) ? (data.licenseRecords ?? []).map((item) => item.id === action.record.id ? action.record : item) : [action.record, ...(data.licenseRecords ?? [])] });
+    case "deleteLicenseRecord":
+      return touch({ ...data, licenseRecords: (data.licenseRecords ?? []).filter((item) => item.id !== action.id) });
     case "upsertProductTestRecord":
       return touch({ ...data, productTestRecords: (data.productTestRecords ?? []).some((item) => item.id === action.record.id) ? (data.productTestRecords ?? []).map((item) => item.id === action.record.id ? action.record : item) : [action.record, ...(data.productTestRecords ?? [])] });
+    case "deleteProductTestRecord":
+      return touch({ ...data, productTestRecords: (data.productTestRecords ?? []).filter((item) => item.id !== action.id) });
     case "upsertSalesTestRecord":
       return touch({ ...data, salesTestRecords: (data.salesTestRecords ?? []).some((item) => item.id === action.record.id) ? (data.salesTestRecords ?? []).map((item) => item.id === action.record.id ? action.record : item) : [action.record, ...(data.salesTestRecords ?? [])] });
+    case "deleteSalesTestRecord":
+      return touch({ ...data, salesTestRecords: (data.salesTestRecords ?? []).filter((item) => item.id !== action.id) });
     case "upsertModelAsset":
       return touch({
         ...data,
