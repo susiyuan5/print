@@ -164,6 +164,7 @@ export const workbenchDataSchema = z.object({
   workshopImages: z.array(z.object({
     id: z.string().min(1),
     projectId: z.string().optional(),
+    productId: z.string().optional(),
     modelId: z.string().optional(),
     sprayLogId: z.string().optional(),
     stepId: z.string().optional(),

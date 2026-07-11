@@ -98,6 +98,18 @@ export interface ProductOpportunity {
   statusHistory?: ProductStatusHistory[];
   productionStatus?: "unprinted" | "queued" | "prototyping" | "prototype-complete" | "test-selling" | "selling" | "paused";
   radarItemId?: string; modelAssetId?: string; radarProvenance?: { title: string; platforms: string[]; sourceLinks: string[]; firstSeenAt: string; totalScore?: number };
+  sourceImages?: ProductImageReference[];
+  prototypeImageIds?: string[];
+}
+
+export interface ProductImageReference {
+  url: string;
+  /** Optional so image records saved before visual comparison remain readable. */
+  kind?: "source" | "model" | "prototype";
+  title?: string;
+  attribution?: string;
+  sourceUrl?: string;
+  capturedAt?: string;
 }
 
 export interface ProductCostSettings { supportMaterialCostCad?: number; platformFeePercent?: number; paymentFeePercent?: number; listingFeeCad?: number; advertisingCostCad?: number; advertisingPercent?: number; failureLossPercent?: number; electricityCostCad?: number; depreciationPerHourCad?: number; manualLaborMinutes?: number; laborHourlyCad?: number; paintFinishingCostCad?: number; returnLossAllowanceCad?: number; }
@@ -249,6 +261,7 @@ export interface SprayProject {
 export interface WorkshopImage {
   id: string;
   projectId?: string;
+  productId?: string;
   modelId?: string;
   sprayLogId?: string;
   stepId?: string;
