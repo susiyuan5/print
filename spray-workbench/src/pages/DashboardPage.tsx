@@ -4,14 +4,13 @@ import { useWorkbench } from "../state/WorkbenchProvider";
 import type { ProductOpportunity } from "../types/workbench";
 
 function score(product: ProductOpportunity) {
-  if (product.ipRisk === "blocked" || product.complianceRisk === "blocked" || product.licenseStatus === "personal-use-only") return 0;
+  if (product.ipRisk === "blocked" || product.complianceRisk === "blocked") return 0;
   const base = product.demandScore * .2 + product.profitScore * .2 + product.shippingScore * .15 + product.customizationScore * .15 + (100 - product.competitionScore) * .1 + product.videoScore * .1 + product.repeatabilityScore * .1;
-  const penalty = (product.ipRisk === "medium" ? 10 : product.ipRisk === "high" ? 30 : 0) + (product.complianceRisk === "medium" ? 10 : product.complianceRisk === "high" ? 25 : 0) + (product.licenseStatus === "unknown" ? 15 : 0);
+  const penalty = (product.ipRisk === "medium" ? 10 : product.ipRisk === "high" ? 30 : 0) + (product.complianceRisk === "medium" ? 10 : product.complianceRisk === "high" ? 25 : 0);
   return Math.round(Math.max(0, Math.min(100, base - penalty)));
 }
 
 function nextAction(product: ProductOpportunity) {
-  if (product.licenseStatus === "unknown" || !product.licenseEvidence) return "补充商用授权证据";
   if (!product.printTimeHours || !product.materialCostCad) return "完成测试打印并录入成本";
   if (!product.sellingPriceCad) return "设置测试售价";
   if (product.status === "candidate" || product.status === "watching") return "推进到测试打印";
@@ -25,12 +24,12 @@ export function DashboardPage() {
   const products = data.productOpportunities ?? [];
   const activeProducts = products.filter((item) => !["approved", "rejected"].includes(item.status));
   const priority = [...activeProducts].sort((a, b) => score(b) - score(a)).slice(0, 3);
-  const blocked = products.filter((item) => score(item) === 0 || item.licenseStatus === "unknown" || !item.licenseEvidence);
+  const blocked = products.filter((item) => score(item) === 0);
   const testing = products.filter((item) => ["test-print", "test-selling"].includes(item.status));
 
   return (
     <>
-      <PageHeader title="今日工作台" description="从选品、授权、模型、打印测试到喷涂与销售验证，集中显示下一步行动。" />
+      <PageHeader title="今日工作台" description="从选品、模型、打印测试到喷涂与销售验证，集中显示下一步行动。" />
       <section className="stat-grid dashboard-stat-grid">
         <div className="stat"><span>产品机会</span><strong>{products.length}</strong></div>
         <div className="stat"><span>验证中</span><strong>{activeProducts.length}</strong></div>
@@ -39,7 +38,7 @@ export function DashboardPage() {
       </section>
 
       <section className="panel dashboard-priority-panel">
-        <div className="section-heading-row"><div><h2>今日优先事项</h2><p className="muted">按机会得分排序，并优先暴露授权、成本和测试缺口。</p></div><Link className="button primary" to="/product-radar">打开产品管线</Link></div>
+        <div className="section-heading-row"><div><h2>今日优先事项</h2><p className="muted">按机会得分排序，并优先暴露成本和测试缺口。</p></div><Link className="button primary" to="/product-radar">打开产品管线</Link></div>
         {priority.length === 0 ? <div className="empty-state">还没有产品机会。先进入产品雷达添加候选。</div> : (
           <div className="priority-grid">
             {priority.map((product, index) => (
@@ -57,7 +56,7 @@ export function DashboardPage() {
         <section className="panel">
           <div className="section-heading-row"><h2>阻塞与风险</h2><span className="count-badge">{blocked.length}</span></div>
           {blocked.slice(0, 6).map((product) => <article className="compact-action-card" key={product.id}><strong>{product.name}</strong><span>{nextAction(product)}</span></article>)}
-          {!blocked.length && <p className="muted">暂无授权或合规阻塞。</p>}
+          {!blocked.length && <p className="muted">暂无 IP 或合规阻塞。</p>}
         </section>
         <section className="panel">
           <div className="section-heading-row"><h2>正在测试</h2><span className="count-badge">{testing.length}</span></div>
