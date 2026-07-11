@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <script>
       var path = location.pathname.replace(/^\/print\/?/, "");
-      var target = "/print/?redirect=" + encodeURIComponent(path + location.search + location.hash);
-      location.replace(target);
+      sessionStorage.setItem("print:spa-redirect", "/" + path + location.search + location.hash);
+      location.replace("/print/");
     </script>
     <title>正在打开喷涂数字工作台</title>
   </head>

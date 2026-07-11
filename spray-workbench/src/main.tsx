@@ -10,6 +10,11 @@ const redirect = new URLSearchParams(window.location.search).get("redirect");
 if (redirect) {
   window.history.replaceState(null, "", `/print/${redirect}`);
 }
+const savedRedirect = window.sessionStorage.getItem("print:spa-redirect");
+if (savedRedirect) {
+  window.sessionStorage.removeItem("print:spa-redirect");
+  window.history.replaceState(null, "", `/print${savedRedirect}`);
+}
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
