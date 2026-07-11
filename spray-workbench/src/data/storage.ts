@@ -53,7 +53,7 @@ export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
     aiRepaintConcepts: data.aiRepaintConcepts ?? [],
     paintRecipes: data.paintRecipes ?? [],
     productOpportunities: data.productOpportunities ?? [],
-    marketSources: data.marketSources ?? [],
+    marketSources: (data.marketSources ?? []).map((source) => ({ ...source, productId: source.productId ?? (source.id.includes(":") ? source.id.split(":")[0] : undefined) })),
     licenseRecords: data.licenseRecords ?? [],
     productTestRecords: data.productTestRecords ?? [],
     salesTestRecords: data.salesTestRecords ?? [],

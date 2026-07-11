@@ -116,7 +116,7 @@ export interface ProductTestRecord {
 export interface SalesTestRecord { id: string; productId: string; platform: string; periodStart?: string; periodEnd?: string; listingUrl?: string; impressions?: number; views?: number; favorites?: number; inquiries?: number; addToCart?: number; orders?: number; revenueCad?: number; returns?: number; customerFeedback?: string; testPriceCad?: number; advertisingSpendCad?: number; notes?: string; updatedAt: string; }
 
 export interface MarketSource {
-  id: string; name: string; url: string; market: string; keyword: string; observedPrice?: string; reviewCount?: number; salesSignal?: string; engagementSignal?: string;
+  id: string; productId?: string; name: string; url: string; market: string; keyword: string; observedPrice?: string; reviewCount?: number; salesSignal?: string; engagementSignal?: string;
   summary: string; confidence: "high" | "medium" | "low"; checkedAt: string;
 }
 
