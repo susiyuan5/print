@@ -50,7 +50,7 @@ export function App() {
           <span className="brand-mark">PL</span>
           <div>
             <strong>3D 商品研发台</strong>
-            <small>PrintLab Workbench</small>
+            <small>PrintLab 3D 产品研发台</small>
           </div>
         </div>
         <nav className="nav-list">
