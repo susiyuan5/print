@@ -17,7 +17,8 @@ const ModelAssetsPage = lazy(() =>
 );
 
 const navItems = [
-  { to: "/", label: "仪表盘", icon: Gauge },
+  { to: "/", label: "今日工作台", icon: Gauge },
+  { to: "/product-radar", label: "产品研发管线", icon: Radar },
   { to: "/projects", label: "项目中心", icon: Briefcase },
   { to: "/models", label: "模型管理", icon: Boxes },
   { to: "/colors", label: "颜色管理", icon: Palette },
@@ -26,7 +27,6 @@ const navItems = [
   { to: "/logs", label: "喷涂记录", icon: Brush },
   { to: "/preview", label: "颜色预览", icon: Layers3 },
   { to: "/data", label: "数据管理", icon: Database },
-  { to: "/product-radar", label: "Product Radar", icon: Radar },
 ];
 
 function ModelsRoute() {
@@ -44,10 +44,10 @@ export function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">SW</span>
+          <span className="brand-mark">PL</span>
           <div>
-            <strong>喷涂工作台</strong>
-            <small>Spray Workbench</small>
+            <strong>3D 商品研发台</strong>
+            <small>PrintLab Workbench</small>
           </div>
         </div>
         <nav className="nav-list">
