@@ -1,14 +1,19 @@
 import express from "express";
 import cors from "cors";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createServer } from "node:http";
+import { createAdapters } from "./server/trend-sources/index.mjs";
 
 const PORT = process.env.LOCAL_SERVER_PORT ? Number(process.env.LOCAL_SERVER_PORT) : 3456;
 const MODEL_ROOT = resolve(process.env.LOCAL_MODEL_ROOT ?? "F:/3D打印手办文件");
 
 const SUPPORTED_MODEL_EXTS = new Set([".glb", ".gltf"]);
 const COVER_NAMES = new Set(["cover.jpg", "cover.png", "cover.webp", "thumbnail.jpg", "thumbnail.png"]);
+const TREND_DB = resolve(".trend-radar.json");
+let trendState = { items: [], settings: { enabledSources: {}, keywords: ["收纳", "桌面", "礼品"], excludedKeywords: [], categories: [], minScore: 50, autoSearch: false, intervalMinutes: 60, maxResultsPerSource: 20 }, sources: [], lastSuccessfulSearchAt: null, searchLog: [] };
+try { trendState = { ...trendState, ...JSON.parse(await readFile(TREND_DB, "utf-8")) }; } catch { /* initialize on first save */ }
+const saveTrendState = () => writeFile(TREND_DB, JSON.stringify(trendState, null, 2));
 
 async function scanModels() {
   const results = [];
@@ -61,6 +66,7 @@ async function scanModels() {
 
 const app = express();
 app.use(cors({ origin: [/^http:\/\/localhost(?::\d+)?$/, /^http:\/\/127\.0\.0\.1(?::\d+)?$/] }));
+app.use(express.json({ limit: "1mb" }));
 
 // API: list models
 app.get("/api/local-models", async (_req, res) => {
@@ -71,6 +77,17 @@ app.get("/api/local-models", async (_req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+
+app.get("/api/trend-radar/results", (_req, res) => res.json({ ok: true, ...trendState }));
+app.get("/api/trend-radar/sources", (_req, res) => res.json({ ok: true, sources: createAdapters(trendState.settings.enabledSources).map(({ id, name, enabled }) => ({ id, name, enabled })) }));
+app.put("/api/trend-radar/settings", async (req, res) => { trendState.settings = { ...trendState.settings, ...req.body }; await saveTrendState(); res.json({ ok: true, settings: trendState.settings }); });
+app.post("/api/trend-radar/search", async (req, res) => {
+  const query = req.body?.query ?? trendState.settings.keywords.join(" "); const adapters = createAdapters(trendState.settings.enabledSources).filter((source) => source.enabled);
+  const results = await Promise.all(adapters.map(async (source) => ({ source: source.id, ...(await source.search({ query })) })));
+  trendState.sources = results.map(({ source, error, items }) => ({ source, ok: !error, error, count: items.length, checkedAt: new Date().toISOString() }));
+  trendState.searchLog = [{ query, at: new Date().toISOString(), sourceCount: results.length }, ...trendState.searchLog].slice(0, 30); trendState.lastSuccessfulSearchAt = new Date().toISOString(); await saveTrendState(); res.json({ ok: true, ...trendState });
+});
+app.post("/api/trend-radar/items/:id/status", async (req, res) => { const item = trendState.items.find((entry) => entry.id === req.params.id); if (!item) return res.status(404).json({ ok: false, error: "未找到趋势项目" }); item.status = req.body?.status ?? item.status; item.note = req.body?.note ?? item.note; await saveTrendState(); res.json({ ok: true, item }); });
 
 // Static: serve model assets
 app.use("/local-assets", express.static(MODEL_ROOT));
