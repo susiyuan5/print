@@ -9,7 +9,8 @@ import { createId } from "../utils/ids";
 import { transitionProduct } from "../utils/productRules";
 
 const markets: ProductMarket[] = ["Canada", "USA", "UK", "EU"];
-const categories = ["Adult Desk Fidgets", "Gaming and Desk Accessories", "Planters and Home Decor", "Personalized Gifts", "Local Problem-Solving Parts"];
+const marketLabels: Record<ProductMarket, string> = { Canada: "加拿大", USA: "美国", UK: "英国", EU: "欧盟" };
+const categories = ["成人桌面解压玩具", "游戏与桌面配件", "花盆与家居装饰", "个性化礼品", "本地问题解决零件"];
 const stages: { status: ProductStatus; label: string; action: string }[] = [
   { status: "watching", label: "发现", action: "补充市场证据" },
   { status: "candidate", label: "验证", action: "核验授权与成本" },
@@ -17,7 +18,8 @@ const stages: { status: ProductStatus; label: string; action: string }[] = [
   { status: "test-selling", label: "测试销售", action: "记录曝光、订单和退货" },
   { status: "approved", label: "批准量产", action: "安排批量生产" },
 ];
-const starter = ["Mechanical gear fidget", "Non-magnetic finger slider", "Controller stand", "Under-desk headphone hanger", "Modular cable organizer", "Planter with drip tray", "Personalized name planter", "Pet silhouette memorial", "Lithophane light enclosure", "Wedding name plate", "Pegboard tool holder", "RV storage hook", "Ski glove drying rack", "Appliance replacement knob", "Model-specific replacement clip"];
+const statusLabel = (status: ProductStatus) => stages.find((stage) => stage.status === status)?.label ?? "未知阶段";
+const starter = ["机械齿轮解压玩具", "无磁指尖滑块", "手柄支架", "桌下耳机挂架", "模块化理线器", "带托盘花盆", "个性化姓名花盆", "宠物剪影纪念品", "光栅灯罩", "婚礼姓名牌", "洞洞板工具挂架", "房车收纳挂钩", "滑雪手套烘干架", "家电替换旋钮", "特定型号替换卡扣"];
 const blank = () => ({ name: "", category: categories[0], markets: ["Canada"] as ProductMarket[], role: "traffic" as ProductRole, demand: 60, competition: 50, profit: 60, shipping: 70, video: 55, customization: 60, repeatability: 60, license: "unknown" as LicenseStatus, ip: "low" as RiskLevel, compliance: "low" as RiskLevel, status: "watching" as ProductStatus, evidence: "", description: "", price: "", material: "", packaging: "", shippingCost: "", time: "", modelId: "", projectId: "", schemeId: "", logId: "" });
 
 function breakdown(product: ProductOpportunity) {
@@ -72,7 +74,7 @@ export function ProductRadarPage() {
     ].filter(Boolean);
     const product: ProductOpportunity = {
       id: createId("radar"), name: form.name, category: form.category, markets: form.markets, productRole: form.role,
-      description: form.description, targetCustomer: "To be validated", customerProblem: "To be researched", customizationOptions: [],
+      description: form.description, targetCustomer: "待验证", customerProblem: "待研究", customizationOptions: [],
       demandScore: form.demand, competitionScore: form.competition, profitScore: form.profit, shippingScore: form.shipping, videoScore: form.video, customizationScore: form.customization, repeatabilityScore: form.repeatability,
       materialCostCad: Number(form.material) || undefined, packagingCostCad: Number(form.packaging) || undefined, shippingCostCad: Number(form.shippingCost) || undefined, sellingPriceCad: Number(form.price) || undefined, printTimeHours: Number(form.time) || undefined,
       licenseStatus: form.license, licenseEvidence: form.evidence || undefined, ipRisk: form.ip, complianceRisk: form.compliance, riskTags: [], sourceLinks: [], evidenceNotes: linkedNotes,
@@ -83,7 +85,7 @@ export function ProductRadarPage() {
   }
 
   function seed() {
-    starter.forEach((name, index) => dispatch({ type: "upsertProductOpportunity", product: { id: createId("radar"), name, category: categories[Math.min(4, Math.floor(index / 3))], markets, productRole: index < 2 ? "traffic" : index < 10 ? "profit" : "search", description: "Initial candidate — no STL file or commercial license is attached.", targetCustomer: "To be validated", customerProblem: "To be researched", customizationOptions: [], demandScore: 60, competitionScore: 50, profitScore: 60, shippingScore: 70, videoScore: 55, customizationScore: 60, repeatabilityScore: 60, licenseStatus: "unknown", ipRisk: "low", complianceRisk: "low", riskTags: [], sourceLinks: [], evidenceNotes: [], status: "watching", lastCheckedAt: new Date().toISOString().slice(0, 10) } }));
+    starter.forEach((name, index) => dispatch({ type: "upsertProductOpportunity", product: { id: createId("radar"), name, category: categories[Math.min(4, Math.floor(index / 3))], markets, productRole: index < 2 ? "traffic" : index < 10 ? "profit" : "search", description: "初始候选：尚未关联模型文件或商业授权。", targetCustomer: "待验证", customerProblem: "待研究", customizationOptions: [], demandScore: 60, competitionScore: 50, profitScore: 60, shippingScore: 70, videoScore: 55, customizationScore: 60, repeatabilityScore: 60, licenseStatus: "unknown", ipRisk: "low", complianceRisk: "low", riskTags: [], sourceLinks: [], evidenceNotes: [], status: "watching", lastCheckedAt: new Date().toISOString().slice(0, 10) } }));
   }
   function move(product: ProductOpportunity, status: ProductStatus) {
     const result = transitionProduct(product, status, data.productTestRecords ?? [], data.salesTestRecords ?? [], data.licenseRecords ?? []);
@@ -103,7 +105,7 @@ export function ProductRadarPage() {
         <h2>新增产品机会</h2>
         <Field label="产品名称"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
         <div className="form-grid"><Field label="类别"><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{categories.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label="阶段"><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as ProductStatus })}>{stages.map((item) => <option key={item.status} value={item.status}>{item.label}</option>)}</select></Field></div>
-        <div className="form-grid"><Field label="产品角色"><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as ProductRole })}>{["traffic", "profit", "search", "seasonal", "replacement"].map((item) => <option key={item}>{item}</option>)}</select></Field><Field label="目标市场"><select multiple value={form.markets} onChange={(e) => setForm({ ...form, markets: Array.from(e.target.selectedOptions, (option) => option.value as ProductMarket) })}>{markets.map((item) => <option key={item}>{item}</option>)}</select></Field></div>
+        <div className="form-grid"><Field label="产品角色"><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as ProductRole })}>{[["traffic","引流"],["profit","利润"],["search","搜索"],["seasonal","季节性"],["replacement","替换件"]].map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field label="目标市场"><select multiple value={form.markets} onChange={(e) => setForm({ ...form, markets: Array.from(e.target.selectedOptions, (option) => option.value as ProductMarket) })}>{markets.map((item) => <option key={item} value={item}>{marketLabels[item]}</option>)}</select></Field></div>
         <Field label="描述"><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
         <div className="radar-score-fields">{(["demand", "competition", "profit", "shipping", "video", "customization", "repeatability"] as const).map((key) => <label key={key}>{key}<input type="number" min="0" max="100" value={form[key]} onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })} /></label>)}</div>
         <div className="form-grid"><Field label="售价 CAD"><input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></Field><Field label="打印小时"><input type="number" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} /></Field><Field label="材料成本"><input type="number" value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} /></Field><Field label="包装成本"><input type="number" value={form.packaging} onChange={(e) => setForm({ ...form, packaging: e.target.value })} /></Field><Field label="运费补贴"><input type="number" value={form.shippingCost} onChange={(e) => setForm({ ...form, shippingCost: e.target.value })} /></Field></div>
@@ -115,9 +117,9 @@ export function ProductRadarPage() {
       </form>
 
       <section>
-        <div className="panel"><div className="filter-grid"><Field label="市场"><select value={market} onChange={(e) => setMarket(e.target.value)}><option value="all">全部</option>{markets.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label="快速筛选"><select value={quick} onChange={(e) => setQuick(e.target.value)}><option value="all">全部</option><option value="shipping">加拿大运输友好</option><option value="verified">已验证商用授权</option><option value="blocked">已阻塞</option></select></Field></div>{!products.length && <button className="button primary" onClick={seed}>载入 15 个初始候选</button>}</div>
+        <div className="panel"><div className="filter-grid"><Field label="市场"><select value={market} onChange={(e) => setMarket(e.target.value)}><option value="all">全部</option>{markets.map((item) => <option key={item} value={item}>{marketLabels[item]}</option>)}</select></Field><Field label="快速筛选"><select value={quick} onChange={(e) => setQuick(e.target.value)}><option value="all">全部</option><option value="shipping">加拿大运输友好</option><option value="verified">已验证商用授权</option><option value="blocked">已阻塞</option></select></Field></div>{!products.length && <button className="button primary" onClick={seed}>载入 15 个初始候选</button>}</div>
         <div className="radar-product-list">{shown.map((product) => { const value = calc(product); const blocked = value === 0; const money = profit(product); const parts = breakdown(product); return <article className={`radar-product ${blocked ? "blocked" : ""}`} key={product.id}>
-          <div className="card-top"><div><strong>{product.name}</strong><span className="radar-subtitle">{product.category} · {product.markets.join(", ")} · {product.status}</span></div><div className="radar-score"><strong>{value}</strong><span>{grade(value)}</span></div></div>
+          <div className="card-top"><div><strong>{product.name}</strong><span className="radar-subtitle">{product.category} · {product.markets.map((marketItem) => marketLabels[marketItem]).join("、")} · {statusLabel(product.status)}</span></div><div className="radar-score"><strong>{value}</strong><span>{grade(value)}</span></div></div>
           <div className="radar-badges"><span>可信度 {confidence(product)}%</span><span>授权 {product.licenseStatus}</span><span>IP {product.ipRisk}</span><span>合规 {product.complianceRisk}</span></div>
           {blocked && <p className="radar-blocked">商业测试已阻止：授权、IP 或合规风险不允许继续。</p>}
           <p>{product.description || "暂无描述"}</p>
