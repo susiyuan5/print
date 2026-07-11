@@ -4,6 +4,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createServer } from "node:http";
 import { createAdapters } from "./server/trend-sources/index.mjs";
+import { browserStatus, capture, detectSource, launch, open, screenshot, stop } from "./server/browser-capture.mjs";
 
 const PORT = process.env.LOCAL_SERVER_PORT ? Number(process.env.LOCAL_SERVER_PORT) : 3456;
 const MODEL_ROOT = resolve(process.env.LOCAL_MODEL_ROOT ?? "F:/3D打印手办文件");
@@ -88,6 +89,15 @@ app.post("/api/trend-radar/search", async (req, res) => {
   trendState.searchLog = [{ query, at: new Date().toISOString(), sourceCount: results.length }, ...trendState.searchLog].slice(0, 30); trendState.lastSuccessfulSearchAt = new Date().toISOString(); await saveTrendState(); res.json({ ok: true, ...trendState });
 });
 app.post("/api/trend-radar/items/:id/status", async (req, res) => { const item = trendState.items.find((entry) => entry.id === req.params.id); if (!item) return res.status(404).json({ ok: false, error: "未找到趋势项目" }); item.status = req.body?.status ?? item.status; item.note = req.body?.note ?? item.note; await saveTrendState(); res.json({ ok: true, item }); });
+
+app.get("/api/browser/status", (_req, res) => res.json({ ok: true, ...browserStatus() }));
+app.post("/api/browser/launch", async (_req, res) => { try { res.json({ ok: true, ...(await launch()) }); } catch (error) { res.status(500).json({ ok: false, error: `无法启动 Chromium：${error.message}。请运行 npx playwright install chromium。` }); } });
+app.post("/api/browser/open", async (req, res) => { try { res.json({ ok: true, ...(await open(req.body?.url, req.body?.source || detectSource(req.body?.url))) }); } catch (error) { res.status(400).json({ ok: false, error: error.message }); } });
+async function captureResponse(req, res, scroll) { try { const result = await capture(scroll ? req.body : {}); res.json({ ok: true, ...result, source: browserStatus().source }); } catch (error) { res.status(400).json({ ok: false, error: error.message }); } }
+app.post("/api/browser/capture", (req, res) => captureResponse(req, res, false));
+app.post("/api/browser/scroll-capture", (req, res) => captureResponse(req, res, true));
+app.post("/api/browser/stop", async (_req, res) => res.json({ ok: true, ...(await stop()) }));
+app.get("/api/browser/screenshot", async (_req, res) => { try { res.type("png").send(await screenshot()); } catch (error) { res.status(400).json({ ok: false, error: error.message }); } });
 
 // Static: serve model assets
 app.use("/local-assets", express.static(MODEL_ROOT));
