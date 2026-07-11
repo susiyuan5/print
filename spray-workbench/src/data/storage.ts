@@ -47,6 +47,10 @@ export function normalizeWorkbenchData(data: WorkbenchData): WorkbenchData {
     colorLabExperiments: data.colorLabExperiments ?? [],
     aiRepaintConcepts: data.aiRepaintConcepts ?? [],
     paintRecipes: data.paintRecipes ?? [],
+    productOpportunities: data.productOpportunities ?? [],
+    marketSources: data.marketSources ?? [],
+    licenseRecords: data.licenseRecords ?? [],
+    productTestRecords: data.productTestRecords ?? [],
   };
 }
 

@@ -22,6 +22,11 @@ const aiPreserveOriginalSchema = z.enum(["strict", "slight_beautify"]);
 const comfyImageModeSchema = z.enum(["img2img", "reference_image", "control_workflow"]);
 const modelSourceTypeSchema = z.enum(["temporary", "localFile", "remoteUrl"]);
 const modelFileExtensionSchema = z.enum(["glb", "gltf", "stl", "obj", "other"]);
+const productMarketSchema = z.enum(["Canada", "USA", "UK", "EU"]);
+const productRoleSchema = z.enum(["traffic", "profit", "search", "seasonal", "replacement"]);
+const licenseStatusSchema = z.enum(["original", "commercial-license", "permission-required", "personal-use-only", "unknown"]);
+const riskLevelSchema = z.enum(["low", "medium", "high", "blocked"]);
+const productStatusSchema = z.enum(["watching", "candidate", "test-print", "test-selling", "approved", "rejected"]);
 
 const modelPreviewSettingsSchema = z.object({
   background: z.enum(["dark", "light", "grid"]).optional(),
@@ -41,6 +46,10 @@ const modelAssetSchema = z.object({
   fileExtension: modelFileExtensionSchema,
   fileSizeBytes: z.number().optional(),
   localRelativePath: z.string().optional(),
+  localPreviewRelativePath: z.string().optional(),
+  modelFileCount: z.number().optional(),
+  localInfoText: z.string().optional(),
+  imageFileCount: z.number().optional(),
   remoteUrl: z.string().optional(),
   thumbnailImageId: z.string().optional(),
   notes: z.string().optional(),
@@ -271,6 +280,17 @@ export const workbenchDataSchema = z.object({
     createdAt: z.string(),
     updatedAt: z.string(),
   })).optional(),
+  productOpportunities: z.array(z.object({
+    id: z.string().min(1), name: z.string().min(1), category: z.string(), markets: z.array(productMarketSchema), productRole: productRoleSchema,
+    description: z.string(), targetCustomer: z.string(), customerProblem: z.string(), customizationOptions: z.array(z.string()),
+    demandScore: z.number().min(0).max(100), competitionScore: z.number().min(0).max(100), profitScore: z.number().min(0).max(100), shippingScore: z.number().min(0).max(100), videoScore: z.number().min(0).max(100), customizationScore: z.number().min(0).max(100), repeatabilityScore: z.number().min(0).max(100),
+    printTimeHours: z.number().optional(), materialWeightGrams: z.number().optional(), materialCostCad: z.number().optional(), packagingCostCad: z.number().optional(), shippingCostCad: z.number().optional(), sellingPriceCad: z.number().optional(), grossMargin: z.number().optional(),
+    licenseStatus: licenseStatusSchema, licenseSource: z.string().optional(), designer: z.string().optional(), licenseEvidence: z.string().optional(), ipRisk: riskLevelSchema, complianceRisk: riskLevelSchema,
+    riskTags: z.array(z.string()), sourceLinks: z.array(z.string()), evidenceNotes: z.array(z.string()), status: productStatusSchema, lastCheckedAt: z.string().optional(),
+  })).optional(),
+  marketSources: z.array(z.object({ id: z.string().min(1), name: z.string(), url: z.string(), market: z.string(), keyword: z.string(), observedPrice: z.string().optional(), reviewCount: z.number().optional(), salesSignal: z.string().optional(), engagementSignal: z.string().optional(), summary: z.string(), confidence: z.enum(["high", "medium", "low"]), checkedAt: z.string() })).optional(),
+  licenseRecords: z.array(z.object({ id: z.string().min(1), productId: z.string().optional(), modelName: z.string(), designer: z.string().optional(), platform: z.string().optional(), modelUrl: z.string().optional(), licenseType: licenseStatusSchema, physicalSalesAllowed: z.boolean().optional(), platformRestrictions: z.string().optional(), attributionRequired: z.boolean().optional(), activeSubscriptionRequired: z.boolean().optional(), purchaseDate: z.string().optional(), proofOfLicense: z.string().optional(), lastReviewedAt: z.string().optional() })).optional(),
+  productTestRecords: z.array(z.object({ id: z.string().min(1), productId: z.string(), printSuccessRate: z.number().optional(), printTimeHours: z.number().optional(), postProcessingMinutes: z.number().optional(), packedWeightGrams: z.number().optional(), actualShippingCostCad: z.number().optional(), videoViews: z.number().optional(), favoriteRate: z.number().optional(), inquiries: z.number().optional(), orders: z.number().optional(), returns: z.number().optional(), customerFeedback: z.string().optional(), updatedAt: z.string() })).optional(),
   updatedAt: z.string(),
 });
 

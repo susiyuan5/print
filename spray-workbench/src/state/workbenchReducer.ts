@@ -4,6 +4,10 @@ import type {
   ColorLabExperiment,
   ModelAsset,
   PaintRecipe,
+  ProductOpportunity,
+  MarketSource,
+  LicenseRecord,
+  ProductTestRecord,
   PaintColor,
   ScaleModel,
   SprayLog,
@@ -40,7 +44,13 @@ export type WorkbenchAction =
   | { type: "deleteAiRepaintConcept"; id: string }
   | { type: "addPaintRecipe"; recipe: PaintRecipe }
   | { type: "updatePaintRecipe"; recipe: PaintRecipe }
-  | { type: "deletePaintRecipe"; id: string };
+  | { type: "deletePaintRecipe"; id: string }
+  | { type: "upsertProductOpportunity"; product: ProductOpportunity }
+  | { type: "deleteProductOpportunity"; id: string }
+  | { type: "upsertMarketSource"; source: MarketSource }
+  | { type: "deleteMarketSource"; id: string }
+  | { type: "upsertLicenseRecord"; record: LicenseRecord }
+  | { type: "upsertProductTestRecord"; record: ProductTestRecord };
 
 function touch(data: WorkbenchData): WorkbenchData {
   return { ...data, updatedAt: nowIso() };
@@ -201,6 +211,18 @@ export function workbenchReducer(data: WorkbenchData, action: WorkbenchAction): 
       return touch({ ...data, paintRecipes: (data.paintRecipes ?? []).map((item) => item.id === action.recipe.id ? action.recipe : item) });
     case "deletePaintRecipe":
       return touch({ ...data, paintRecipes: (data.paintRecipes ?? []).filter((item) => item.id !== action.id) });
+    case "upsertProductOpportunity":
+      return touch({ ...data, productOpportunities: (data.productOpportunities ?? []).some((item) => item.id === action.product.id) ? (data.productOpportunities ?? []).map((item) => item.id === action.product.id ? action.product : item) : [action.product, ...(data.productOpportunities ?? [])] });
+    case "deleteProductOpportunity":
+      return touch({ ...data, productOpportunities: (data.productOpportunities ?? []).filter((item) => item.id !== action.id), licenseRecords: (data.licenseRecords ?? []).filter((item) => item.productId !== action.id), productTestRecords: (data.productTestRecords ?? []).filter((item) => item.productId !== action.id) });
+    case "upsertMarketSource":
+      return touch({ ...data, marketSources: (data.marketSources ?? []).some((item) => item.id === action.source.id) ? (data.marketSources ?? []).map((item) => item.id === action.source.id ? action.source : item) : [action.source, ...(data.marketSources ?? [])] });
+    case "deleteMarketSource":
+      return touch({ ...data, marketSources: (data.marketSources ?? []).filter((item) => item.id !== action.id) });
+    case "upsertLicenseRecord":
+      return touch({ ...data, licenseRecords: (data.licenseRecords ?? []).some((item) => item.id === action.record.id) ? (data.licenseRecords ?? []).map((item) => item.id === action.record.id ? action.record : item) : [action.record, ...(data.licenseRecords ?? [])] });
+    case "upsertProductTestRecord":
+      return touch({ ...data, productTestRecords: (data.productTestRecords ?? []).some((item) => item.id === action.record.id) ? (data.productTestRecords ?? []).map((item) => item.id === action.record.id ? action.record : item) : [action.record, ...(data.productTestRecords ?? [])] });
     case "upsertModelAsset":
       return touch({
         ...data,

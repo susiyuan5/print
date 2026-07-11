@@ -1,11 +1,11 @@
 import express from "express";
 import cors from "cors";
-import { readdir, stat, readFile } from "node:fs/promises";
-import { join, resolve, relative } from "node:path";
+import { readdir, readFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { createServer } from "node:http";
 
 const PORT = process.env.LOCAL_SERVER_PORT ? Number(process.env.LOCAL_SERVER_PORT) : 3456;
-const MODEL_ROOT = resolve(process.env.LOCAL_MODEL_ROOT ?? "D:/SprayModels");
+const MODEL_ROOT = resolve(process.env.LOCAL_MODEL_ROOT ?? "F:/3D打印手办文件");
 
 const SUPPORTED_MODEL_EXTS = new Set([".glb", ".gltf"]);
 const COVER_NAMES = new Set(["cover.jpg", "cover.png", "cover.webp", "thumbnail.jpg", "thumbnail.png"]);
@@ -79,4 +79,3 @@ createServer(app).listen(PORT, () => {
   console.log(`Local model server running at http://localhost:${PORT}`);
   console.log(`Serving models from: ${MODEL_ROOT}`);
 });
-const MODEL_ROOT = resolve(process.env.LOCAL_MODEL_ROOT ?? "F:/print");
