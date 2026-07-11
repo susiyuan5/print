@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile, rename } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { createServer } from "node:http";
 import { createAdapters } from "./server/trend-sources/index.mjs";
@@ -14,7 +15,11 @@ const COVER_NAMES = new Set(["cover.jpg", "cover.png", "cover.webp", "thumbnail.
 const TREND_DB = resolve(".trend-radar.json");
 let trendState = { items: [], settings: { enabledSources: {}, keywords: ["收纳", "桌面", "礼品"], excludedKeywords: [], categories: [], minScore: 50, autoSearch: false, intervalMinutes: 60, maxResultsPerSource: 20 }, sources: [], lastSuccessfulSearchAt: null, searchLog: [] };
 try { trendState = { ...trendState, ...JSON.parse(await readFile(TREND_DB, "utf-8")) }; } catch { /* initialize on first save */ }
-const saveTrendState = () => writeFile(TREND_DB, JSON.stringify(trendState, null, 2));
+const saveTrendState = async () => { const temp = `${TREND_DB}.tmp`; await writeFile(temp, JSON.stringify(trendState, null, 2)); await rename(temp, TREND_DB); };
+const pendingCaptures = new Map();
+const normalizeTitle = (value = "") => value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+const validItem = (item) => { const errors = []; if (!item.title?.trim()) errors.push("缺少标题"); if (!item.source?.trim()) errors.push("缺少来源"); try { const url = new URL(item.url); if (!/^https?:$/.test(url.protocol)) errors.push("商品链接必须是 http 或 https"); } catch { errors.push("商品链接无效"); } return errors; };
+function importCapture(capture, selectedIndexes = [], edits = {}) { const errors = []; let imported = 0; let skipped = 0; const now = new Date().toISOString(); for (const index of selectedIndexes) { const raw = { ...capture.items[index], ...(edits[index] ?? {}) }; const validation = validItem(raw); if (validation.length) { errors.push({ index, message: validation.join("；") }); continue; } const title = raw.title.trim(); const existing = trendState.items.find((item) => item.sources?.some((source) => source.url === raw.url) || (normalizeTitle(item.title) === normalizeTitle(title) && item.sources?.some((source) => source.platform === raw.source))); if (existing) { existing.lastSeenAt = now; if (!existing.sources.some((source) => source.url === raw.url)) existing.sources.push({ platform: raw.source, url: raw.url, discoveredAt: now, price: raw.price, currency: raw.currency, views: raw.views, likes: raw.likes, reviews: raw.reviews }); skipped += 1; continue; } trendState.items.push({ id: randomUUID(), title, normalizedTitle: normalizeTitle(title), description: raw.description, imageUrl: raw.imageUrl, sources: [{ platform: raw.source, url: raw.url, externalId: raw.externalId, discoveredAt: now, price: raw.price, currency: raw.currency, views: raw.views, likes: raw.likes, reviews: raw.reviews }], category: raw.category, keywords: raw.keywords ?? [], heatScore: undefined, competitionScore: undefined, printabilityScore: undefined, profitScore: undefined, totalScore: undefined, recommendation: "watch", status: "new", ipRisk: "unknown", matchedModelAssetIds: [], firstSeenAt: now, lastSeenAt: now }); imported += 1; } return { imported, skipped, errors }; }
 
 async function scanModels() {
   const results = [];
@@ -93,9 +98,12 @@ app.post("/api/trend-radar/items/:id/status", async (req, res) => { const item =
 app.get("/api/browser/status", (_req, res) => res.json({ ok: true, ...browserStatus() }));
 app.post("/api/browser/launch", async (_req, res) => { try { res.json({ ok: true, ...(await launch()) }); } catch (error) { res.status(500).json({ ok: false, error: `无法启动 Chromium：${error.message}。请运行 npx playwright install chromium。` }); } });
 app.post("/api/browser/open", async (req, res) => { try { res.json({ ok: true, ...(await open(req.body?.url, req.body?.source || detectSource(req.body?.url))) }); } catch (error) { res.status(400).json({ ok: false, error: error.message }); } });
-async function captureResponse(req, res, scroll) { try { const result = await capture(scroll ? req.body : {}); res.json({ ok: true, ...result, source: browserStatus().source }); } catch (error) { res.status(400).json({ ok: false, error: error.message }); } }
+async function captureResponse(req, res, scroll) { try { const result = await capture(scroll ? req.body : {}); const captureId = randomUUID(); const state = browserStatus(); pendingCaptures.set(captureId, { id: captureId, source: state.source, url: state.url, pageTitle: state.title, capturedAt: new Date().toISOString(), items: result.items.map((item) => ({ ...item, source: state.source })), warnings: result.warnings }); res.json({ ok: true, captureId, itemCount: result.items.length, warnings: result.warnings, url: state.url, pageTitle: state.title }); } catch (error) { res.status(400).json({ ok: false, error: error.message }); } }
 app.post("/api/browser/capture", (req, res) => captureResponse(req, res, false));
 app.post("/api/browser/scroll-capture", (req, res) => captureResponse(req, res, true));
+app.get("/api/browser/captures/:id", (req, res) => { const capture = pendingCaptures.get(req.params.id); if (!capture) return res.status(404).json({ ok: false, error: "抓取会话不存在或已取消" }); res.json({ ok: true, capture, validation: capture.items.map(validItem) }); });
+app.post("/api/browser/captures/:id/import", async (req, res) => { const capture = pendingCaptures.get(req.params.id); if (!capture) return res.status(404).json({ ok: false, error: "抓取会话不存在或已取消" }); const result = importCapture(capture, req.body?.selectedIndexes ?? [], req.body?.edits ?? {}); await saveTrendState(); if (!result.errors.length) pendingCaptures.delete(req.params.id); res.json({ ok: true, ...result }); });
+app.delete("/api/browser/captures/:id", (req, res) => { pendingCaptures.delete(req.params.id); res.json({ ok: true }); });
 app.post("/api/browser/stop", async (_req, res) => res.json({ ok: true, ...(await stop()) }));
 app.get("/api/browser/screenshot", async (_req, res) => { try { res.type("png").send(await screenshot()); } catch (error) { res.status(400).json({ ok: false, error: error.message }); } });
 
