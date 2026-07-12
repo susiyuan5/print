@@ -16,6 +16,7 @@ export function normalizeExtensionCapture(payload = {}, { validateUrl, detectSou
       sourceDescription: typeof item.sourceDescription === "string" ? item.sourceDescription.replace(/\s+/g, " ").trim().slice(0, 1_200) || undefined : undefined,
       descriptionLanguage: typeof item.descriptionLanguage === "string" ? item.descriptionLanguage.slice(0, 20) : undefined,
       translationStatus: ["translated", "not-needed", "unavailable", "failed"].includes(item.translationStatus) ? item.translationStatus : undefined,
+      descriptionReadStatus: ["success", "failed"].includes(item.descriptionReadStatus) ? item.descriptionReadStatus : undefined,
       source,
       attribution: source,
       keywords: Array.isArray(item.keywords) ? item.keywords.filter((keyword) => typeof keyword === "string").slice(0, 20) : undefined,
@@ -28,6 +29,6 @@ export function normalizeExtensionCapture(payload = {}, { validateUrl, detectSou
     pageTitle: typeof payload.pageTitle === "string" ? payload.pageTitle.slice(0, 200) : "",
     capturedAt: now,
     items,
-    warnings: ["由当前 Chrome 标签页扩展手动提交；请在导入前确认内容。", ...(items.some((item) => item.translationStatus === "unavailable" || item.translationStatus === "failed") ? ["部分说明无法使用 Chrome 本机翻译，已保留来源原文。"] : [])],
+    warnings: ["由当前 Chrome 标签页扩展手动提交；请在导入前确认内容。", ...(items.some((item) => item.descriptionReadStatus === "failed") ? ["部分项目未能读取详情页 Description，未使用榜单卡片文字冒充说明。"] : []), ...(items.some((item) => item.translationStatus === "unavailable" || item.translationStatus === "failed") ? ["部分说明无法使用 Chrome 本机翻译，已保留来源原文。"] : [])],
   };
 }

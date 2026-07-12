@@ -37,59 +37,6 @@ void (async () => {
       }
       return best;
     };
-    const descriptionFromDocument = (documentRoot) => {
-      const labels = new Set(["description", "描述", "说明", "商品描述", "item description", "about this item"]);
-      const heading = [...documentRoot.querySelectorAll("h1,h2,h3,h4,h5,h6,[role='heading']")].find((element) => labels.has(compact(element.textContent).toLowerCase()));
-      if (heading?.nextElementSibling) {
-        const text = compact(heading.nextElementSibling.textContent); if (text) return text.slice(0, 2_000);
-      }
-      if (heading?.parentElement) {
-        const text = compact(heading.parentElement.textContent).replace(new RegExp(`^${compact(heading.textContent)}\\s*`, "i"), ""); if (text) return text.slice(0, 2_000);
-      }
-      const platformDescription = documentRoot.querySelector("[data-testid*='description'], [data-product-details-description-text-content], [class*='description-content'], #description");
-      const platformText = compact(platformDescription?.textContent); if (platformText) return platformText.slice(0, 2_000);
-      return undefined;
-    };
-    const renderedDescription = (url) => new Promise((resolve) => {
-      const frame = document.createElement("iframe"); let finished = false;
-      frame.setAttribute("aria-hidden", "true"); frame.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-10000px;top:-10000px;border:0";
-      const finish = (description) => { if (finished) return; finished = true; frame.remove(); resolve(description); };
-      const timeout = setTimeout(() => finish(undefined), 10_000);
-      frame.addEventListener("load", () => {
-        const deadline = Date.now() + 8_000;
-        const check = () => {
-          try { const description = frame.contentDocument && descriptionFromDocument(frame.contentDocument); if (description) { clearTimeout(timeout); finish(description); return; } } catch { /* frame may still be navigating */ }
-          if (Date.now() < deadline) setTimeout(check, 250); else { clearTimeout(timeout); finish(undefined); }
-        };
-        check();
-      }, { once: true });
-      frame.src = url; document.documentElement.appendChild(frame);
-    });
-    const fetchDescription = async (url) => {
-      try {
-        const target = new URL(url, location.href); if (target.hostname !== location.hostname) throw new Error("来源不同");
-        if (target.hostname.includes("makerworld.com")) return { url, description: await renderedDescription(target.href) };
-        const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 12_000);
-        const response = await fetch(target.href, { credentials: "include", headers: { Accept: "text/html" }, signal: controller.signal }); clearTimeout(timeout);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const detailDocument = new DOMParser().parseFromString(await response.text(), "text/html");
-        return { url, description: descriptionFromDocument(detailDocument) || await renderedDescription(target.href) };
-      } catch (error) {
-        return { url, error: error instanceof Error ? error.message : String(error) };
-      }
-    };
-    if (!globalThis.__printlabDescriptionBridgeV140) {
-      globalThis.__printlabDescriptionBridgeV140 = true;
-      chrome.runtime.onMessage.addListener((message) => {
-        if (message?.type !== "page-description-request" || !Array.isArray(message.urls)) return;
-        void (async () => {
-          const urls = [...new Set(message.urls.filter((url) => typeof url === "string"))].slice(0, 100); const results = new Array(urls.length); let cursor = 0;
-          const workers = Array.from({ length: Math.min(3, urls.length) }, async () => { while (cursor < urls.length) { const index = cursor; cursor += 1; results[index] = await fetchDescription(urls[index]); } });
-          await Promise.all(workers);
-          await chrome.runtime.sendMessage({ type: "page-description-result", requestId: message.requestId, results }).catch(() => undefined);
-        })();
-      });
-    }
     const allLinks = [...document.querySelectorAll("a[href]")]; const items = [];
     for (const link of allLinks) {
       let url;
