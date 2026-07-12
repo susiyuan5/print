@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 // @ts-expect-error Chrome extension helper is plain ESM and is exercised directly by Vitest.
-import { canonicalItemUrl, sourceFromUrl } from "../../chrome-extension/item-rules.js";
+import { canonicalItemUrl, captureDiagnosticMessage, normalizeRawPageCapture, sourceFromUrl } from "../../chrome-extension/item-rules.js";
 
 describe("extension specific item URL rules", () => {
   const specific = [
@@ -35,5 +35,20 @@ describe("extension specific item URL rules", () => {
   it("removes tracking data while preserving the concrete item path", () => {
     expect(canonicalItemUrl("https://makerworld.com/en/models/1015187?from=search#profile")).toBe("https://makerworld.com/en/models/1015187");
   });
-});
 
+  it("merges MakerWorld image and title links into 40 concrete models", () => {
+    const modelLinks = Array.from({ length: 40 }, (_, index) => {
+      const id = 3_000_000 + index; const url = `https://makerworld.com/en/models/${id}-model-${index}?from=hot`;
+      return [{ url, title: "", imageUrl: `https://makerworld.example/${id}.jpg` }, { url, title: `Model ${index}`, description: `Maker ${index} 1 k 2 k` }];
+    }).flat();
+    const capture = normalizeRawPageCapture({ pageUrl: "https://makerworld.com/en/3d-models?orderBy=hotScore", pageTitle: "3D Models - MakerWorld", totalLinks: 240, items: [...modelLinks, { url: "https://makerworld.com/en/3d-models/100-art", title: "Art" }] }, "makerworld");
+    expect(capture.diagnostics).toEqual({ totalLinks: 240, candidateLinks: 80, validItems: 40, timedOut: false });
+    expect(capture.items[0]).toMatchObject({ title: "Model 0", imageUrl: "https://makerworld.example/3000000.jpg", url: "https://makerworld.com/en/models/3000000-model-0" });
+  });
+
+  it("returns actionable diagnostics for loading, candidate and title failures", () => {
+    expect(captureDiagnosticMessage({ timedOut: true, totalLinks: 20 })).toContain("8 秒内仍未加载");
+    expect(captureDiagnosticMessage({ totalLinks: 200, candidateLinks: 0 })).toContain("没有识别到具体项目链接");
+    expect(captureDiagnosticMessage({ totalLinks: 200, candidateLinks: 5, validItems: 0 })).toContain("缺少可用标题");
+  });
+});

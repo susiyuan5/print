@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PrintLab 趋势雷达抓取",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "minimum_chrome_version": "138",
   "description": "精准提取当前 Chrome 标签页的具体项目，并在本机将说明翻译为中文后提交到趋势雷达。",
   "action": { "default_title": "提交当前页到趋势雷达", "default_popup": "popup.html" },
