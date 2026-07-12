@@ -2,10 +2,24 @@ void (async () => {
   try {
     const pricePattern = /(?:CA\$|US\$|\$|£|€)\s?\d+(?:[.,]\d+)?/;
     const compact = (value = "") => value.replace(/\s+/g, " ").trim();
-    const host = location.hostname.toLowerCase().replace(/^www\./, ""); const makerWorld = host.includes("makerworld.com"); const cults3d = host.includes("cults3d.com");
+    const host = location.hostname.toLowerCase().replace(/^www\./, ""); const makerWorld = host.includes("makerworld.com"); const printables = host.includes("printables.com"); const cults3d = host.includes("cults3d.com");
     const deadline = Date.now() + 8_000;
     while (makerWorld && !document.querySelector(".js-design-card") && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 250));
     const timedOut = makerWorld && !document.querySelector(".js-design-card");
+    const printablesModelCount = () => new Set([...document.querySelectorAll("a[href]")].map((link) => {
+      try { const url = new URL(link.href, location.href); return url.hostname.includes("printables.com") && /^\/model\/\d+(?:-[^/]+)?\/?$/i.test(url.pathname) ? `${url.origin}${url.pathname.replace(/\/$/, "")}` : undefined; } catch { return undefined; }
+    }).filter(Boolean)).size;
+    if (printables && printablesModelCount() < 100) {
+      const originalScrollY = window.scrollY; let previousCount = printablesModelCount(); let stableRounds = 0;
+      for (let round = 0; round < 36 && previousCount < 100 && stableRounds < 5; round += 1) {
+        window.scrollTo({ top: document.scrollingElement?.scrollHeight ?? document.body.scrollHeight, behavior: "instant" });
+        await new Promise((resolve) => setTimeout(resolve, 650));
+        const currentCount = printablesModelCount();
+        stableRounds = currentCount > previousCount ? 0 : stableRounds + 1; previousCount = currentCount;
+      }
+      window.scrollTo({ top: originalScrollY, behavior: "instant" });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
     const absoluteHttpUrl = (value) => { try { const url = new URL(value, location.href); return /^https?:$/.test(url.protocol) ? url.href : undefined; } catch { return undefined; } };
     const usableImage = (value) => { const url = absoluteHttpUrl(value); return url && !/(?:placeholder|transparent|spacer|blank|pixel)(?:[._/-]|$)/i.test(url) ? url : undefined; };
     const srcsetUrls = (value) => String(value ?? "").split(",").map((part) => part.trim().split(/\s+/)[0]).map(usableImage).filter(Boolean).reverse();

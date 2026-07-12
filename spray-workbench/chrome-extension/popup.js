@@ -5,7 +5,7 @@ const page = document.querySelector("#page"); const status = document.querySelec
 let activeTab; let activeSource = "generic"; let pageLanguage = "und";
 
 const captureFromContentScript = (tabId) => new Promise((resolve, reject) => {
-  const timeout = setTimeout(() => finish(new Error("页面提取超时，请刷新当前页面后重试")), 12_000);
+  const timeout = setTimeout(() => finish(new Error("页面加载 100 条项目超时，请确认网络正常后重试")), 45_000);
   const listener = (message, sender) => {
     if (message?.type !== "page-capture-result" || sender.tab?.id !== tabId) return;
     finish(message.error ? new Error(message.error) : undefined, message.payload);

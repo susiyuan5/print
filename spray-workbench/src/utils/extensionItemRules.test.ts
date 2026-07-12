@@ -46,6 +46,13 @@ describe("extension specific item URL rules", () => {
     expect(capture.items[0]).toMatchObject({ title: "Model 0", imageUrl: "https://makerworld.example/3000000.jpg", url: "https://makerworld.com/en/models/3000000-model-0" });
   });
 
+  it("keeps up to 100 unique Printables models for preview", () => {
+    const items = Array.from({ length: 120 }, (_, index) => ({ title: `Printable ${index}`, url: `https://www.printables.com/model/${10_000 + index}-printable-${index}` }));
+    const capture = normalizeRawPageCapture({ pageUrl: "https://www.printables.com/model", totalLinks: 500, items }, "printables");
+    expect(capture.items).toHaveLength(100);
+    expect(capture.diagnostics.candidateLinks).toBe(120);
+  });
+
   it("returns actionable diagnostics for loading, candidate and title failures", () => {
     expect(captureDiagnosticMessage({ timedOut: true, totalLinks: 20 })).toContain("8 秒内仍未加载");
     expect(captureDiagnosticMessage({ totalLinks: 200, candidateLinks: 0 })).toContain("没有识别到具体项目链接");
