@@ -1,4 +1,4 @@
-export const compactDescription = (value) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+export const compactDescription = (value) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, 1_200);
 export const normalizeLanguage = (value) => String(value ?? "").toLowerCase().split("-")[0] || "und";
 export const isChineseDescription = (value = "") => {
   const chinese = value.match(/[\u3400-\u9fff]/g)?.length ?? 0;

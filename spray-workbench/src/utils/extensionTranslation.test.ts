@@ -18,6 +18,12 @@ describe("Chrome local description translation", () => {
     expect(item).toMatchObject({ description: "模块化桌面收纳盒", sourceDescription: "Modular desk organizer", descriptionLanguage: "en", translationStatus: "translated" });
     expect(destroy).toHaveBeenCalled();
   });
+  it("keeps up to 1200 characters from a product Description", async () => {
+    const source = "A".repeat(1_500); const prepared = { status: "unavailable", language: "en" };
+    const [item] = await translateDescriptions([{ description: source }], prepared);
+    expect(item.description).toHaveLength(1_200);
+    expect(item.sourceDescription).toHaveLength(1_200);
+  });
 
   it("keeps Chinese descriptions without creating a translator", async () => {
     const api = { create: vi.fn() }; const prepared = await prepareTranslator("zh-CN", api);

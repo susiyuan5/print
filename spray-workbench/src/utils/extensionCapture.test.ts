@@ -7,10 +7,10 @@ import { detectSource, validateUrl } from "../../server/browser-capture.mjs";
 
 describe("Chrome extension capture bridge", () => {
   it("creates a pending-capture compatible payload while preserving image, price and a compact description", () => {
-    const capture = normalizeExtensionCapture({ pageUrl: "https://www.etsy.com/search?q=3d+printed", pageTitle: "Etsy", items: [{ title: "Desk organizer", url: "https://www.etsy.com/listing/1", imageUrl: "https://images.example/item.jpg", priceText: "US$ 20", description: `  模块化\n  收纳盒 ${"中".repeat(400)}`, sourceDescription: "Modular organizer", descriptionLanguage: "en", translationStatus: "translated" }] }, { validateUrl, detectSource, now: "2026-07-12T00:00:00.000Z" });
+    const capture = normalizeExtensionCapture({ pageUrl: "https://www.etsy.com/search?q=3d+printed", pageTitle: "Etsy", items: [{ title: "Desk organizer", url: "https://www.etsy.com/listing/1", imageUrl: "https://images.example/item.jpg", priceText: "US$ 20", description: `  模块化\n  收纳盒 ${"中".repeat(1_400)}`, sourceDescription: "Modular organizer", descriptionLanguage: "en", translationStatus: "translated" }] }, { validateUrl, detectSource, now: "2026-07-12T00:00:00.000Z" });
     expect(capture).toMatchObject({ source: "etsy", pageTitle: "Etsy", capturedAt: "2026-07-12T00:00:00.000Z" });
     expect(capture.items[0]).toMatchObject({ title: "Desk organizer", imageUrl: "https://images.example/item.jpg", priceText: "US$ 20" });
-    expect(capture.items[0].description).toHaveLength(300);
+    expect(capture.items[0].description).toHaveLength(1_200);
     expect(capture.items[0]).toMatchObject({ sourceDescription: "Modular organizer", descriptionLanguage: "en", translationStatus: "translated" });
   });
   it("keeps legacy capture items without a description compatible", () => {
@@ -25,7 +25,7 @@ describe("Chrome extension capture bridge", () => {
   it("ships a Manifest V3 extension with only local-service host permission", async () => {
     const manifest = JSON.parse(await readFile(new URL("../../chrome-extension/manifest.json", import.meta.url), "utf8"));
     expect(manifest.manifest_version).toBe(3);
-    expect(manifest.version).toBe("1.3.2");
+    expect(manifest.version).toBe("1.4.0");
     expect(Number(manifest.minimum_chrome_version)).toBeGreaterThanOrEqual(138);
     expect(manifest.permissions).toEqual(expect.arrayContaining(["activeTab", "scripting"]));
     expect(manifest.host_permissions).toEqual(["http://127.0.0.1:3456/*"]);
@@ -40,6 +40,11 @@ describe("Chrome extension capture bridge", () => {
     expect(capturePage).toContain('type: "page-capture-result"');
     expect(capturePage).toContain('String(value ?? "").split(",")');
     expect(capturePage).toContain('data-background-image');
+    expect(capturePage).toContain('message?.type !== "page-description-request"');
+    expect(capturePage).toContain('labels.has(compact(element.textContent).toLowerCase())');
+    expect(capturePage).toContain('frame.contentDocument && descriptionFromDocument(frame.contentDocument)');
+    expect(capturePage).toContain('target.hostname.includes("makerworld.com")');
+    expect(popup).toContain("正在读取 ${extracted.items.length} 个产品详情页的 Description");
   });
   it("eagerly loads the first preview images and keeps a retry path", async () => {
     const page = await readFile(new URL("../pages/TrendRadarPage.tsx", import.meta.url), "utf8");

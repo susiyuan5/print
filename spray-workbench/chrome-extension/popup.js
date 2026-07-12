@@ -18,6 +18,17 @@ const captureFromContentScript = (tabId) => new Promise((resolve, reject) => {
   chrome.scripting.executeScript({ target: { tabId }, files: ["capture-page.js"] }).catch((error) => finish(error));
 });
 
+const loadProductDescriptions = (tabId, items) => new Promise((resolve) => {
+  const requestId = crypto.randomUUID(); const timeout = setTimeout(() => finish([]), 120_000);
+  const listener = (message, sender) => {
+    if (message?.type !== "page-description-result" || message.requestId !== requestId || sender.tab?.id !== tabId) return;
+    finish(Array.isArray(message.results) ? message.results : []);
+  };
+  const finish = (results) => { clearTimeout(timeout); chrome.runtime.onMessage.removeListener(listener); resolve(results); };
+  chrome.runtime.onMessage.addListener(listener);
+  chrome.tabs.sendMessage(tabId, { type: "page-description-request", requestId, urls: items.map((item) => item.url) }).catch(() => finish([]));
+});
+
 chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
   activeTab = tab; activeSource = sourceFromUrl(tab?.url); const valid = /^https?:/.test(tab?.url || "") && activeSource !== "generic";
   page.textContent = valid ? `${activeSource} · ${tab.title || tab.url}` : "请打开受支持平台的榜单或具体项目页面。";
@@ -33,12 +44,16 @@ button.addEventListener("click", async () => {
     const rawCapture = await captureFromContentScript(activeTab.id);
     const extracted = normalizeRawPageCapture(rawCapture, activeSource);
     if (!extracted.items.length) throw new Error(captureDiagnosticMessage(extracted.diagnostics));
+    status.textContent = `正在读取 ${extracted.items.length} 个产品详情页的 Description…`;
+    const descriptionResults = await loadProductDescriptions(activeTab.id, extracted.items);
+    const descriptions = new Map(descriptionResults.filter((result) => result?.description).map((result) => [result.url, result.description]));
+    const detailedItems = extracted.items.map((item) => ({ ...item, description: descriptions.get(item.url) || item.description }));
     const prepared = await translatorTask;
-    const items = await translateDescriptions(extracted.items, prepared, (done, total) => { status.textContent = `正在本机翻译说明 ${done}/${total}…`; });
+    const items = await translateDescriptions(detailedItems, prepared, (done, total) => { status.textContent = `正在本机翻译说明 ${done}/${total}…`; });
     const response = await chrome.runtime.sendMessage({ type: "submit-capture", payload: { pageUrl: extracted.pageUrl, pageTitle: extracted.pageTitle, items } });
     if (!response?.ok) throw new Error(response?.error || "提交失败");
     const unavailable = items.filter((item) => item.translationStatus === "unavailable" || item.translationStatus === "failed").length;
-    status.textContent = `已识别 ${extracted.diagnostics.candidateLinks} 个候选，提交 ${response.itemCount} 条${unavailable ? `，${unavailable} 条保留原文` : "，说明已处理为中文"}。`;
+    status.textContent = `提交 ${response.itemCount} 条，其中 ${descriptions.size} 条读取了产品 Description${unavailable ? `，${unavailable} 条翻译时保留原文` : "，并已处理为中文"}。`;
   } catch (error) {
     status.textContent = `抓取失败：${error.message}`; button.disabled = false;
   }
