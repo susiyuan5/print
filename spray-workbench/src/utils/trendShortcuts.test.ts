@@ -3,6 +3,7 @@ import { buildSearchUrl, calculateRadarCounters, isPublicHttpUrl, loadShortcutPr
 
 describe("trend shortcuts", () => {
   it("contains the configured official ranking and validation entry points", () => {
+    expect(officialTrendShortcuts).toHaveLength(9);
     expect(new Set(officialTrendShortcuts.map((shortcut) => shortcut.platform)).size).toBe(9);
     expect(officialTrendShortcuts.every((shortcut) => isPublicHttpUrl(shortcut.url))).toBe(true);
     expect(officialTrendShortcuts.filter((shortcut) => shortcut.group === "social-signal").map((shortcut) => shortcut.keyword)).toEqual(["#3dprinting", "#3dprinting"]);
@@ -14,9 +15,9 @@ describe("trend shortcuts", () => {
     ["file:///tmp/a", "javascript:alert(1)", "http://127.0.0.1:3000", "http://192.168.1.2", "https://example.com"].forEach((value, index) => expect(isPublicHttpUrl(value)).toBe(index === 4));
   });
   it("records recent opens and applies hide/order preferences", () => {
-    const prefs = recordShortcutOpen({ ...loadShortcutPreferences(), hiddenIds: ["cults-trending"], order: ["etsy-0"], custom: [] }, "etsy-0", "2026-07-12T00:00:00.000Z");
-    expect(prefs.recentIds[0]).toBe("etsy-0");
-    expect(visibleShortcuts(prefs)[0].id).toBe("etsy-0");
+    const prefs = recordShortcutOpen({ ...loadShortcutPreferences(), hiddenIds: ["cults-trending"], order: ["etsy-3dprinted"], custom: [] }, "etsy-3dprinted", "2026-07-12T00:00:00.000Z");
+    expect(prefs.recentIds[0]).toBe("etsy-3dprinted");
+    expect(visibleShortcuts(prefs)[0].id).toBe("etsy-3dprinted");
     expect(visibleShortcuts(prefs).some((shortcut) => shortcut.id === "cults-trending")).toBe(false);
   });
   it("derives header counters from persisted radar state", () => {

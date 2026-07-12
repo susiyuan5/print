@@ -28,7 +28,7 @@ export interface TrendShortcutPreferences {
 }
 
 export const AMAZON_KEYWORDS = ["desk organizer", "controller stand", "headphone hanger", "cable organizer", "pegboard accessories", "replacement knob"];
-export const ETSY_KEYWORDS = ["3d printed", "3d printed organizer", "3d printed fidget"];
+export const ETSY_KEYWORD = "3d printed";
 
 export function buildSearchUrl(origin: string, parameter: string, query: string) {
   const url = new URL(origin);
@@ -38,14 +38,11 @@ export function buildSearchUrl(origin: string, parameter: string, query: string)
 
 export const officialTrendShortcuts: TrendShortcut[] = [
   { id: "cults-trending", group: "model-ranking", platform: "Cults3D", label: "Cults3D · 热门趋势", url: "https://cults3d.com/en/creations/trending", description: "查看近期增长较快的 3D 模型" },
-  { id: "cults-best-sellers", group: "model-ranking", platform: "Cults3D", label: "Cults3D · 畅销模型", url: "https://cults3d.com/en/creations/best-sellers", description: "查看有实际购买信号的模型" },
-  { id: "cults-downloads", group: "model-ranking", platform: "Cults3D", label: "Cults3D · 下载最多", url: "https://cults3d.com/en/creations/latest?direction=desc&sort=downloads_count", description: "查看社区高下载模型" },
-  { id: "cults-search-trends", group: "model-ranking", platform: "Cults3D", label: "Cults3D · 热门搜索", url: "https://cults3d.com/en/search/trends", description: "查看用户正在搜索的关键词" },
   { id: "printables-featured", group: "model-ranking", platform: "Printables", label: "Printables · 精选模型", url: "https://www.printables.com/model", description: "查看社区近期精选和高互动模型" },
   { id: "makerworld-popular", group: "model-ranking", platform: "MakerWorld", label: "MakerWorld · 热门模型", url: "https://makerworld.com/en/search/models?keyword=&orderBy=trending", description: "查看近期大量打印的模型" },
   { id: "thingiverse-popular", group: "model-ranking", platform: "Thingiverse", label: "Thingiverse · 热门模型", url: "https://www.thingiverse.com/?page=1&sort=popular", description: "查看社区热门模型和收藏信号" },
   { id: "myminifactory-search", group: "model-ranking", platform: "MyMiniFactory", label: "MyMiniFactory · 3D 模型搜索", url: buildSearchUrl("https://www.myminifactory.com/search/", "query", "3d printing"), description: "查看精选创作者和可打印模型，可能需要手动登录" },
-  ...ETSY_KEYWORDS.map((keyword, index) => ({ id: `etsy-${index}`, group: "market-validation" as const, platform: "Etsy", label: ["Etsy · 3D 打印商品", "Etsy · 3D 打印收纳", "Etsy · 3D 打印解压玩具"][index], url: buildSearchUrl("https://www.etsy.com/search", "q", keyword), keyword, description: ["验证实体成品是否有人购买", "验证收纳和桌面用品需求", "验证互动玩具需求"][index] })),
+  { id: "etsy-3dprinted", group: "market-validation", platform: "Etsy", label: "Etsy · 3D 打印商品", url: buildSearchUrl("https://www.etsy.com/search", "q", ETSY_KEYWORD), keyword: ETSY_KEYWORD, description: "验证实体成品是否有人购买" },
   { id: "amazon-demand", group: "market-validation", platform: "Amazon", label: "Amazon · 实用产品需求", url: buildSearchUrl("https://www.amazon.com/s", "k", AMAZON_KEYWORDS[0]), keyword: AMAZON_KEYWORDS[0], description: "验证大众实用产品需求" },
   { id: "tiktok-3dprinting", group: "social-signal", platform: "TikTok", label: "TikTok · #3dprinting", url: "https://www.tiktok.com/tag/3dprinting", keyword: "#3dprinting", description: "观察短视频内容与互动信号，可能需要手动登录或验证" },
   { id: "instagram-3dprinting", group: "social-signal", platform: "Instagram", label: "Instagram · #3dprinting", url: "https://www.instagram.com/explore/tags/3dprinting/", keyword: "#3dprinting", description: "观察图片内容与互动信号，可能需要手动登录或验证" },
