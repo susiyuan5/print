@@ -3,11 +3,12 @@ const compact = (value = "") => String(value).replace(/\s+/g, " ").trim();
 
 function extractDetailInPage() {
   const tidy = (value = "") => String(value).replace(/\s+/g, " ").trim();
+  const printables = location.hostname.toLowerCase().endsWith("printables.com");
   const labels = new Set(["description", "描述", "说明", "商品描述", "item description", "about this item"]);
   const headings = [...document.querySelectorAll("h1,h2,h3,h4,h5,h6,[role='heading']")];
   const heading = headings.find((element) => labels.has(tidy(element.textContent).toLowerCase()));
-  let description;
-  if (heading?.nextElementSibling) {
+  let description = printables ? tidy(document.querySelector(".user-inserted")?.textContent).slice(0, 2_000) || undefined : undefined;
+  if (!description && heading?.nextElementSibling) {
     const text = tidy(heading.nextElementSibling.textContent);
     if (text) description = text.slice(0, 2_000);
   }
@@ -20,6 +21,10 @@ function extractDetailInPage() {
     const platform = document.querySelector("[data-testid*='description'], [data-product-details-description-text-content], [class*='description-content'], #description");
     const platformText = tidy(platform?.textContent); if (platformText) description = platformText.slice(0, 2_000);
   }
+  if (printables && (!description || description.toLowerCase() === "pdf")) {
+    description = tidy(document.querySelector("meta[property='og:description']")?.content || document.querySelector("meta[name='description']")?.content).replace(/\s*\|\s*Download free.*$/i, "").slice(0, 2_000) || undefined;
+  }
+  if (description?.toLowerCase() === "pdf") description = undefined;
   const imageUrl = document.querySelector("meta[property='og:image']")?.content || document.querySelector("meta[name='twitter:image']")?.content || undefined;
   return { description, imageUrl };
 }

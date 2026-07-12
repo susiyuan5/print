@@ -15,6 +15,12 @@ void (async () => {
     const srcsetUrls = (value) => String(value ?? "").split(",").map((part) => part.trim().split(/\s+/)[0]).map(usableImage).filter(Boolean).reverse();
     const imageFrom = (root) => {
       if (!root) return undefined;
+      if (printables) {
+        const printablesImage = [...(root.matches?.("img") ? [root] : root.querySelectorAll?.("img") ?? [])]
+          .flatMap((image) => [image.currentSrc, ...srcsetUrls(image.getAttribute("srcset")), image.getAttribute("src")])
+          .map(usableImage).find((value) => { try { return new URL(value).hostname === "media.printables.com"; } catch { return false; } });
+        if (printablesImage) return printablesImage;
+      }
       for (const image of root.matches?.("img") ? [root] : [...(root.querySelectorAll?.("img") ?? [])]) {
         const candidates = [image.currentSrc, ...srcsetUrls(image.getAttribute("data-srcset")), ...srcsetUrls(image.getAttribute("srcset")), image.getAttribute("data-original"), image.getAttribute("data-original-src"), image.getAttribute("data-src"), image.getAttribute("data-lazy-src"), image.getAttribute("data-lazy"), image.getAttribute("data-url"), image.getAttribute("poster"), image.getAttribute("src")];
         const candidate = candidates.map(usableImage).find(Boolean); if (candidate) return candidate;

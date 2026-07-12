@@ -42,10 +42,11 @@ button.addEventListener("click", async () => {
     const descriptionResults = await loadProductDescriptions(extracted.items);
     const descriptions = new Map(descriptionResults.filter((result) => result?.description).map((result) => [result.url, result.description]));
     const detailImages = new Map(descriptionResults.filter((result) => result?.imageUrl).map((result) => [result.url, result.imageUrl]));
-    const detailedItems = extracted.items.map(({ description: _cardText, ...item }) => ({ ...item, imageUrl: detailImages.get(item.url) || item.imageUrl, description: descriptions.get(item.url), descriptionReadStatus: descriptions.has(item.url) ? "success" : "failed" }));
+    const validItemImage = (value) => { try { const url = new URL(value); return activeSource !== "printables" || url.hostname === "media.printables.com" ? url.href : undefined; } catch { return undefined; } };
+    const detailedItems = extracted.items.map(({ description: _cardText, ...item }) => ({ ...item, imageUrl: validItemImage(detailImages.get(item.url)) || validItemImage(item.imageUrl), description: descriptions.get(item.url), descriptionReadStatus: descriptions.has(item.url) ? "success" : "failed" }));
     const prepared = await translatorTask;
     const items = await translateDescriptions(detailedItems, prepared, (done, total) => { status.textContent = `正在本机翻译说明 ${done}/${total}…`; });
-    const response = await chrome.runtime.sendMessage({ type: "submit-capture", payload: { pageUrl: extracted.pageUrl, pageTitle: extracted.pageTitle, items } });
+    const response = await chrome.runtime.sendMessage({ type: "submit-capture", payload: { pageUrl: extracted.pageUrl, pageTitle: extracted.pageTitle, extensionVersion: chrome.runtime.getManifest().version, items } });
     if (!response?.ok) throw new Error(response?.error || "提交失败");
     const unavailable = items.filter((item) => item.translationStatus === "unavailable" || item.translationStatus === "failed").length;
     const missing = items.length - descriptions.size;

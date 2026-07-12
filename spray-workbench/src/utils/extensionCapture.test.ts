@@ -25,7 +25,7 @@ describe("Chrome extension capture bridge", () => {
   it("ships a Manifest V3 extension with only local-service host permission", async () => {
     const manifest = JSON.parse(await readFile(new URL("../../chrome-extension/manifest.json", import.meta.url), "utf8"));
     expect(manifest.manifest_version).toBe(3);
-    expect(manifest.version).toBe("1.5.3");
+    expect(manifest.version).toBe("1.5.4");
     expect(Number(manifest.minimum_chrome_version)).toBeGreaterThanOrEqual(138);
     expect(manifest.permissions).toEqual(expect.arrayContaining(["activeTab", "scripting"]));
     expect(manifest.host_permissions).toEqual(expect.arrayContaining(["http://127.0.0.1:3456/*", "https://*.makerworld.com/*"]));
@@ -54,7 +54,10 @@ describe("Chrome extension capture bridge", () => {
     expect(background).toContain('chrome.tabs.create({ url: safeUrl, active: false })');
     expect(background).toContain("func: extractDetailInPage");
     expect(background).toContain("meta[property='og:image']");
-    expect(popup).toContain("detailImages.get(item.url) || item.imageUrl");
+    expect(background).toContain('document.querySelector(".user-inserted")');
+    expect(background).toContain('description?.toLowerCase() === "pdf"');
+    expect(popup).toContain("validItemImage(detailImages.get(item.url)) || validItemImage(item.imageUrl)");
+    expect(popup).toContain('url.hostname === "media.printables.com"');
     expect(background).toContain("chrome.tabs.remove(tabId)");
   });
   it("marks missing detail descriptions without promoting card metrics to a description", () => {

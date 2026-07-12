@@ -27,6 +27,7 @@ export function normalizeExtensionCapture(payload = {}, { validateUrl, detectSou
     source,
     url: payload.pageUrl,
     pageTitle: typeof payload.pageTitle === "string" ? payload.pageTitle.slice(0, 200) : "",
+    extensionVersion: typeof payload.extensionVersion === "string" ? payload.extensionVersion.slice(0, 20) : undefined,
     capturedAt: now,
     items,
     warnings: ["由当前 Chrome 标签页扩展手动提交；请在导入前确认内容。", ...(items.some((item) => item.descriptionReadStatus === "failed") ? ["部分项目未能读取详情页 Description，未使用榜单卡片文字冒充说明。"] : []), ...(items.some((item) => item.translationStatus === "unavailable" || item.translationStatus === "failed") ? ["部分说明无法使用 Chrome 本机翻译，已保留来源原文。"] : [])],
