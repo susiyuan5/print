@@ -25,7 +25,7 @@ describe("Chrome extension capture bridge", () => {
   it("ships a Manifest V3 extension with only local-service host permission", async () => {
     const manifest = JSON.parse(await readFile(new URL("../../chrome-extension/manifest.json", import.meta.url), "utf8"));
     expect(manifest.manifest_version).toBe(3);
-    expect(manifest.version).toBe("1.5.2");
+    expect(manifest.version).toBe("1.5.3");
     expect(Number(manifest.minimum_chrome_version)).toBeGreaterThanOrEqual(138);
     expect(manifest.permissions).toEqual(expect.arrayContaining(["activeTab", "scripting"]));
     expect(manifest.host_permissions).toEqual(expect.arrayContaining(["http://127.0.0.1:3456/*", "https://*.makerworld.com/*"]));
@@ -41,6 +41,7 @@ describe("Chrome extension capture bridge", () => {
     expect(capturePage).toContain('type: "page-capture-result"');
     expect(capturePage).toContain('String(value ?? "").split(",")');
     expect(capturePage).toContain('data-background-image');
+    expect(capturePage).toContain("candidate.pathname === current.pathname && candidate.search === current.search");
     expect(capturePage).not.toContain("renderedDescription");
     expect(capturePage).toContain("printablesSnapshotCount() < 100");
     expect(capturePage).toContain("collectVisibleItems()");
@@ -51,7 +52,9 @@ describe("Chrome extension capture bridge", () => {
     expect(popup).toContain("description: descriptions.get(item.url)");
     expect(popup).not.toContain("descriptions.get(item.url) || item.description");
     expect(background).toContain('chrome.tabs.create({ url: safeUrl, active: false })');
-    expect(background).toContain("func: extractDescriptionInPage");
+    expect(background).toContain("func: extractDetailInPage");
+    expect(background).toContain("meta[property='og:image']");
+    expect(popup).toContain("detailImages.get(item.url) || item.imageUrl");
     expect(background).toContain("chrome.tabs.remove(tabId)");
   });
   it("marks missing detail descriptions without promoting card metrics to a description", () => {

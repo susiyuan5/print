@@ -1,23 +1,27 @@
 const SUPPORTED_DETAIL_HOSTS = ["cults3d.com", "printables.com", "makerworld.com", "thingiverse.com", "myminifactory.com", "etsy.com", "amazon.com", "amazon.ca", "tiktok.com", "instagram.com"];
 const compact = (value = "") => String(value).replace(/\s+/g, " ").trim();
 
-function extractDescriptionInPage() {
+function extractDetailInPage() {
   const tidy = (value = "") => String(value).replace(/\s+/g, " ").trim();
   const labels = new Set(["description", "描述", "说明", "商品描述", "item description", "about this item"]);
   const headings = [...document.querySelectorAll("h1,h2,h3,h4,h5,h6,[role='heading']")];
   const heading = headings.find((element) => labels.has(tidy(element.textContent).toLowerCase()));
+  let description;
   if (heading?.nextElementSibling) {
     const text = tidy(heading.nextElementSibling.textContent);
-    if (text) return text.slice(0, 2_000);
+    if (text) description = text.slice(0, 2_000);
   }
-  if (heading?.parentElement) {
+  if (!description && heading?.parentElement) {
     const headingText = tidy(heading.textContent);
     const text = tidy(heading.parentElement.textContent).slice(headingText.length).trim();
-    if (text) return text.slice(0, 2_000);
+    if (text) description = text.slice(0, 2_000);
   }
-  const platform = document.querySelector("[data-testid*='description'], [data-product-details-description-text-content], [class*='description-content'], #description");
-  const platformText = tidy(platform?.textContent);
-  return platformText ? platformText.slice(0, 2_000) : undefined;
+  if (!description) {
+    const platform = document.querySelector("[data-testid*='description'], [data-product-details-description-text-content], [class*='description-content'], #description");
+    const platformText = tidy(platform?.textContent); if (platformText) description = platformText.slice(0, 2_000);
+  }
+  const imageUrl = document.querySelector("meta[property='og:image']")?.content || document.querySelector("meta[name='twitter:image']")?.content || undefined;
+  return { description, imageUrl };
 }
 
 const safeDetailUrl = (value) => {
@@ -26,6 +30,10 @@ const safeDetailUrl = (value) => {
     const host = url.hostname.toLowerCase().replace(/^www\./, "");
     return url.protocol === "https:" && SUPPORTED_DETAIL_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`)) ? url.href : undefined;
   } catch { return undefined; }
+};
+
+const safeDetailImage = (value, detailUrl) => {
+  try { const image = new URL(value, detailUrl); const detail = new URL(detailUrl); return image.protocol === "https:" && image.href !== detail.href ? image.href : undefined; } catch { return undefined; }
 };
 
 const waitForLoaded = async (tabId, timeoutMs = 25_000) => {
@@ -48,14 +56,14 @@ const readOneDescription = async (url) => {
     tabId = tab.id;
     if (!tabId) throw new Error("无法创建后台标签页");
     await waitForLoaded(tabId);
-    const deadline = Date.now() + 18_000;
+    const deadline = Date.now() + 18_000; let lastImageUrl;
     while (Date.now() < deadline) {
-      const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: extractDescriptionInPage }).catch(() => []);
-      const description = compact(result);
-      if (description) return { url, description };
+      const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: extractDetailInPage }).catch(() => []);
+      const description = compact(result?.description); lastImageUrl = safeDetailImage(result?.imageUrl, safeUrl) || lastImageUrl;
+      if (description) return { url, description, imageUrl: lastImageUrl };
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
-    return { url, error: "详情页没有读取到 Description" };
+    return { url, imageUrl: lastImageUrl, error: "详情页没有读取到 Description" };
   } catch (error) {
     return { url, error: error instanceof Error ? error.message : String(error) };
   } finally {

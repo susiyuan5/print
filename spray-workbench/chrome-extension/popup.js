@@ -41,7 +41,8 @@ button.addEventListener("click", async () => {
     status.textContent = `正在读取 ${extracted.items.length} 个产品详情页的 Description…`;
     const descriptionResults = await loadProductDescriptions(extracted.items);
     const descriptions = new Map(descriptionResults.filter((result) => result?.description).map((result) => [result.url, result.description]));
-    const detailedItems = extracted.items.map(({ description: _cardText, ...item }) => ({ ...item, description: descriptions.get(item.url), descriptionReadStatus: descriptions.has(item.url) ? "success" : "failed" }));
+    const detailImages = new Map(descriptionResults.filter((result) => result?.imageUrl).map((result) => [result.url, result.imageUrl]));
+    const detailedItems = extracted.items.map(({ description: _cardText, ...item }) => ({ ...item, imageUrl: detailImages.get(item.url) || item.imageUrl, description: descriptions.get(item.url), descriptionReadStatus: descriptions.has(item.url) ? "success" : "failed" }));
     const prepared = await translatorTask;
     const items = await translateDescriptions(detailedItems, prepared, (done, total) => { status.textContent = `正在本机翻译说明 ${done}/${total}…`; });
     const response = await chrome.runtime.sendMessage({ type: "submit-capture", payload: { pageUrl: extracted.pageUrl, pageTitle: extracted.pageTitle, items } });

@@ -7,7 +7,11 @@ void (async () => {
     while (makerWorld && !document.querySelector(".js-design-card") && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 250));
     const timedOut = makerWorld && !document.querySelector(".js-design-card");
     const absoluteHttpUrl = (value) => { try { const url = new URL(value, location.href); return /^https?:$/.test(url.protocol) ? url.href : undefined; } catch { return undefined; } };
-    const usableImage = (value) => { const url = absoluteHttpUrl(value); return url && !/(?:placeholder|transparent|spacer|blank|pixel)(?:[._/-]|$)/i.test(url) ? url : undefined; };
+    const usableImage = (value) => {
+      const url = absoluteHttpUrl(value); if (!url || /(?:placeholder|transparent|spacer|blank|pixel)(?:[._/-]|$)/i.test(url)) return undefined;
+      try { const candidate = new URL(url); const current = new URL(location.href); if (candidate.origin === current.origin && candidate.pathname === current.pathname && candidate.search === current.search) return undefined; } catch { return undefined; }
+      return url;
+    };
     const srcsetUrls = (value) => String(value ?? "").split(",").map((part) => part.trim().split(/\s+/)[0]).map(usableImage).filter(Boolean).reverse();
     const imageFrom = (root) => {
       if (!root) return undefined;
