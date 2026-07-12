@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PrintLab 趋势雷达抓取",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "在你手动确认后，将当前 Chrome 标签页的可见商品链接提交到本机趋势雷达。",
   "action": { "default_title": "提交当前页到趋势雷达", "default_popup": "popup.html" },
   "background": { "service_worker": "background.js", "type": "module" },

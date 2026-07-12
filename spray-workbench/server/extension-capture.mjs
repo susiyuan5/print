@@ -12,6 +12,7 @@ export function normalizeExtensionCapture(payload = {}, { validateUrl, detectSou
       url: item.url,
       imageUrl: typeof item.imageUrl === "string" ? item.imageUrl : undefined,
       priceText: typeof item.priceText === "string" ? item.priceText : undefined,
+      description: typeof item.description === "string" ? item.description.replace(/\s+/g, " ").trim().slice(0, 300) || undefined : undefined,
       source,
       attribution: source,
       keywords: Array.isArray(item.keywords) ? item.keywords.filter((keyword) => typeof keyword === "string").slice(0, 20) : undefined,
