@@ -8,7 +8,7 @@ void (async () => {
     const timedOut = makerWorld && !document.querySelector(".js-design-card");
     const absoluteHttpUrl = (value) => { try { const url = new URL(value, location.href); return /^https?:$/.test(url.protocol) ? url.href : undefined; } catch { return undefined; } };
     const usableImage = (value) => { const url = absoluteHttpUrl(value); return url && !/(?:placeholder|transparent|spacer|blank|pixel)(?:[._/-]|$)/i.test(url) ? url : undefined; };
-    const srcsetUrls = (value = "") => value.split(",").map((part) => part.trim().split(/\s+/)[0]).map(usableImage).filter(Boolean).reverse();
+    const srcsetUrls = (value) => String(value ?? "").split(",").map((part) => part.trim().split(/\s+/)[0]).map(usableImage).filter(Boolean).reverse();
     const imageFrom = (root) => {
       if (!root) return undefined;
       for (const image of root.matches?.("img") ? [root] : [...(root.querySelectorAll?.("img") ?? [])]) {

@@ -3,6 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { prepareTranslator, translateDescriptions } from "../../chrome-extension/translation.js";
 
 describe("Chrome local description translation", () => {
+  it("accepts null language and description values", async () => {
+    const prepared = await prepareTranslator(null, undefined);
+    const [item] = await translateDescriptions([{ description: null }], prepared);
+    expect(prepared).toMatchObject({ status: "unavailable", language: "und" });
+    expect(item).toEqual({ description: null });
+  });
   it("translates an English description and preserves its source text", async () => {
     const progress = vi.fn(); const translate = vi.fn(async () => "模块化桌面收纳盒"); const destroy = vi.fn();
     const api = { create: vi.fn(({ monitor }) => { monitor({ addEventListener: (_name: string, handler: (event: { loaded: number }) => void) => handler({ loaded: .5 }) }); return Promise.resolve({ translate, destroy }); }) };
