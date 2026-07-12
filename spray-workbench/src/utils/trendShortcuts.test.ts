@@ -7,6 +7,13 @@ describe("trend shortcuts", () => {
     expect(new Set(officialTrendShortcuts.map((shortcut) => shortcut.platform)).size).toBe(9);
     expect(officialTrendShortcuts.every((shortcut) => isPublicHttpUrl(shortcut.url))).toBe(true);
     expect(officialTrendShortcuts.filter((shortcut) => shortcut.group === "social-signal").map((shortcut) => shortcut.keyword)).toEqual(["#3dprinting", "#3dprinting"]);
+    expect(Object.fromEntries(officialTrendShortcuts.map((shortcut) => [shortcut.platform, shortcut.url]))).toMatchObject({
+      Cults3D: "https://cults3d.com/zh",
+      Printables: "https://www.printables.com/",
+      MakerWorld: "https://makerworld.com/en",
+      Thingiverse: "https://www.thingiverse.com/",
+      Etsy: "https://www.etsy.com/ca/?ref=lgo",
+    });
   });
   it("encodes marketplace search queries", () => {
     expect(buildSearchUrl("https://www.etsy.com/search", "q", "3d printed organizer")).toContain("q=3d+printed+organizer");
