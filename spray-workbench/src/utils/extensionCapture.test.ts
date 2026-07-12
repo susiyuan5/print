@@ -1,0 +1,25 @@
+import { readFile } from "node:fs/promises";
+import { describe, expect, it } from "vitest";
+// @ts-expect-error Server module is plain ESM and tested without starting Express.
+import { isChromeExtensionOrigin, normalizeExtensionCapture } from "../../server/extension-capture.mjs";
+// @ts-expect-error Server module is plain ESM and tested without launching Chrome.
+import { detectSource, validateUrl } from "../../server/browser-capture.mjs";
+
+describe("Chrome extension capture bridge", () => {
+  it("creates a pending-capture compatible payload while preserving image and price", () => {
+    const capture = normalizeExtensionCapture({ pageUrl: "https://www.etsy.com/search?q=3d+printed", pageTitle: "Etsy", items: [{ title: "Desk organizer", url: "https://www.etsy.com/listing/1", imageUrl: "https://images.example/item.jpg", priceText: "US$ 20" }] }, { validateUrl, detectSource, now: "2026-07-12T00:00:00.000Z" });
+    expect(capture).toMatchObject({ source: "etsy", pageTitle: "Etsy", capturedAt: "2026-07-12T00:00:00.000Z" });
+    expect(capture.items[0]).toMatchObject({ title: "Desk organizer", imageUrl: "https://images.example/item.jpg", priceText: "US$ 20" });
+  });
+  it("rejects unsafe item URLs and non-extension origins", () => {
+    expect(() => normalizeExtensionCapture({ pageUrl: "https://example.com", items: [{ title: "bad", url: "file:///secret" }] }, { validateUrl, detectSource })).toThrow("没有可确认");
+    expect(isChromeExtensionOrigin("chrome-extension://abcdefghijklmnopabcdefghijklmnop")).toBe(true);
+    expect(isChromeExtensionOrigin("http://localhost:5173")).toBe(false);
+  });
+  it("ships a Manifest V3 extension with only local-service host permission", async () => {
+    const manifest = JSON.parse(await readFile(new URL("../../chrome-extension/manifest.json", import.meta.url), "utf8"));
+    expect(manifest.manifest_version).toBe(3);
+    expect(manifest.permissions).toEqual(expect.arrayContaining(["activeTab", "scripting"]));
+    expect(manifest.host_permissions).toEqual(["http://127.0.0.1:3456/*"]);
+  });
+});
