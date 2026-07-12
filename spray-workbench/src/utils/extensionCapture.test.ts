@@ -25,7 +25,7 @@ describe("Chrome extension capture bridge", () => {
   it("ships a Manifest V3 extension with only local-service host permission", async () => {
     const manifest = JSON.parse(await readFile(new URL("../../chrome-extension/manifest.json", import.meta.url), "utf8"));
     expect(manifest.manifest_version).toBe(3);
-    expect(manifest.version).toBe("1.2.1");
+    expect(manifest.version).toBe("1.2.2");
     expect(Number(manifest.minimum_chrome_version)).toBeGreaterThanOrEqual(138);
     expect(manifest.permissions).toEqual(expect.arrayContaining(["activeTab", "scripting"]));
     expect(manifest.host_permissions).toEqual(["http://127.0.0.1:3456/*"]);

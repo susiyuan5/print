@@ -32,7 +32,9 @@ export function canonicalItemUrl(value, source = sourceFromUrl(value)) {
   }
 }
 
-export function normalizeRawPageCapture(payload = {}, source = sourceFromUrl(payload.pageUrl)) {
+export function normalizeRawPageCapture(payload, source) {
+  payload = payload && typeof payload === "object" ? payload : {};
+  source ||= sourceFromUrl(payload.pageUrl);
   const byUrl = new Map(); let candidateLinks = 0;
   for (const raw of Array.isArray(payload.items) ? payload.items : []) {
     const url = canonicalItemUrl(raw?.url, source); if (!url) continue;

@@ -51,4 +51,8 @@ describe("extension specific item URL rules", () => {
     expect(captureDiagnosticMessage({ totalLinks: 200, candidateLinks: 0 })).toContain("没有识别到具体项目链接");
     expect(captureDiagnosticMessage({ totalLinks: 200, candidateLinks: 5, validItems: 0 })).toContain("缺少可用标题");
   });
+
+  it("treats a null injected result as an empty compatible capture", () => {
+    expect(normalizeRawPageCapture(null, "makerworld")).toEqual({ pageUrl: undefined, pageTitle: undefined, items: [], diagnostics: { totalLinks: 0, candidateLinks: 0, validItems: 0, timedOut: false } });
+  });
 });

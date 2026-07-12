@@ -4,13 +4,10 @@ import { prepareTranslator, translateDescriptions } from "./translation.js";
 const page = document.querySelector("#page"); const status = document.querySelector("#status"); const button = document.querySelector("#capture");
 let activeTab; let activeSource = "generic"; let pageLanguage = "und";
 
-const extractRawPageItems = async () => {
+const extractRawPageItems = () => {
   const pricePattern = /(?:CA\$|US\$|\$|£|€)\s?\d+(?:[.,]\d+)?/;
   const compact = (value = "") => value.replace(/\s+/g, " ").trim();
   const host = location.hostname.toLowerCase().replace(/^www\./, ""); const makerWorld = host.includes("makerworld.com");
-  const deadline = Date.now() + 8_000;
-  while (makerWorld && !document.querySelector(".js-design-card") && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 250));
-  const timedOut = makerWorld && !document.querySelector(".js-design-card");
   const absoluteHttpUrl = (value) => { try { const url = new URL(value, location.href); return /^https?:$/.test(url.protocol) ? url.href : undefined; } catch { return undefined; } };
   const usableImage = (value) => { const url = absoluteHttpUrl(value); return url && !/(?:placeholder|transparent|spacer|blank|pixel)(?:[._/-]|$)/i.test(url) ? url : undefined; };
   const srcsetUrls = (value = "") => value.split(",").map((part) => part.trim().split(/\s+/)[0]).map(usableImage).filter(Boolean).reverse();
@@ -58,7 +55,18 @@ const extractRawPageItems = async () => {
     priceText: meta("meta[property='product:price:amount']") || undefined,
     description: (meta("meta[property='og:description']") || meta("meta[name='description']")).slice(0, 300) || undefined,
   });
-  return { pageUrl: location.href, pageTitle: document.title, totalLinks: allLinks.length, timedOut, items };
+  return JSON.parse(JSON.stringify({ pageUrl: location.href, pageTitle: document.title, totalLinks: allLinks.length, items }));
+};
+
+const waitForPageCards = async (tabId, source) => {
+  if (source !== "makerworld") return false;
+  const deadline = Date.now() + 8_000;
+  while (Date.now() < deadline) {
+    const [probe] = await chrome.scripting.executeScript({ target: { tabId }, func: () => ({ cards: document.querySelectorAll(".js-design-card").length, links: document.querySelectorAll("a[href]").length }) });
+    if (probe?.result?.cards > 0) return false;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return true;
 };
 
 chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
@@ -73,8 +81,10 @@ button.addEventListener("click", async () => {
   button.disabled = true; status.textContent = "正在读取已加载的具体项目…";
   const translatorTask = prepareTranslator(pageLanguage, globalThis.Translator, (progress) => { status.textContent = `正在下载本机语言包 ${progress}%…`; });
   try {
+    const timedOut = await waitForPageCards(activeTab.id, activeSource);
     const [result] = await chrome.scripting.executeScript({ target: { tabId: activeTab.id }, func: extractRawPageItems });
-    const extracted = normalizeRawPageCapture(result.result, activeSource);
+    if (!result?.result || typeof result.result !== "object") throw new Error("页面提取没有返回数据，请重新加载扩展和当前页面后重试");
+    const extracted = normalizeRawPageCapture({ ...result.result, timedOut }, activeSource);
     if (!extracted.items.length) throw new Error(captureDiagnosticMessage(extracted.diagnostics));
     const prepared = await translatorTask;
     const items = await translateDescriptions(extracted.items, prepared, (done, total) => { status.textContent = `正在本机翻译说明 ${done}/${total}…`; });
