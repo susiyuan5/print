@@ -25,7 +25,7 @@ describe("Chrome extension capture bridge", () => {
   it("ships a Manifest V3 extension with only local-service host permission", async () => {
     const manifest = JSON.parse(await readFile(new URL("../../chrome-extension/manifest.json", import.meta.url), "utf8"));
     expect(manifest.manifest_version).toBe(3);
-    expect(manifest.version).toBe("1.3.1");
+    expect(manifest.version).toBe("1.3.2");
     expect(Number(manifest.minimum_chrome_version)).toBeGreaterThanOrEqual(138);
     expect(manifest.permissions).toEqual(expect.arrayContaining(["activeTab", "scripting"]));
     expect(manifest.host_permissions).toEqual(["http://127.0.0.1:3456/*"]);
@@ -39,5 +39,12 @@ describe("Chrome extension capture bridge", () => {
     expect(popup).toContain('message?.type !== "page-capture-result"');
     expect(capturePage).toContain('type: "page-capture-result"');
     expect(capturePage).toContain('String(value ?? "").split(",")');
+    expect(capturePage).toContain('data-background-image');
+  });
+  it("eagerly loads the first preview images and keeps a retry path", async () => {
+    const page = await readFile(new URL("../pages/TrendRadarPage.tsx", import.meta.url), "utf8");
+    expect(page).toContain('eager={index < 30}');
+    expect(page).toContain("图片加载失败，点击重试");
+    expect(page).toContain("attempt >= 2");
   });
 });

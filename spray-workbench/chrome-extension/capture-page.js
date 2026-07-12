@@ -2,7 +2,7 @@ void (async () => {
   try {
     const pricePattern = /(?:CA\$|US\$|\$|£|€)\s?\d+(?:[.,]\d+)?/;
     const compact = (value = "") => value.replace(/\s+/g, " ").trim();
-    const host = location.hostname.toLowerCase().replace(/^www\./, ""); const makerWorld = host.includes("makerworld.com");
+    const host = location.hostname.toLowerCase().replace(/^www\./, ""); const makerWorld = host.includes("makerworld.com"); const cults3d = host.includes("cults3d.com");
     const deadline = Date.now() + 8_000;
     while (makerWorld && !document.querySelector(".js-design-card") && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 250));
     const timedOut = makerWorld && !document.querySelector(".js-design-card");
@@ -12,23 +12,28 @@ void (async () => {
     const imageFrom = (root) => {
       if (!root) return undefined;
       for (const image of root.matches?.("img") ? [root] : [...(root.querySelectorAll?.("img") ?? [])]) {
-        const candidates = [image.currentSrc, ...srcsetUrls(image.getAttribute("data-srcset")), ...srcsetUrls(image.getAttribute("srcset")), image.getAttribute("data-original"), image.getAttribute("data-src"), image.getAttribute("data-lazy-src"), image.getAttribute("src")];
+        const candidates = [image.currentSrc, ...srcsetUrls(image.getAttribute("data-srcset")), ...srcsetUrls(image.getAttribute("srcset")), image.getAttribute("data-original"), image.getAttribute("data-original-src"), image.getAttribute("data-src"), image.getAttribute("data-lazy-src"), image.getAttribute("data-lazy"), image.getAttribute("data-url"), image.getAttribute("poster"), image.getAttribute("src")];
         const candidate = candidates.map(usableImage).find(Boolean); if (candidate) return candidate;
       }
       for (const entry of root.querySelectorAll?.("picture source") ?? []) { const candidate = [...srcsetUrls(entry.getAttribute("srcset")), ...srcsetUrls(entry.getAttribute("data-srcset"))][0]; if (candidate) return candidate; }
       for (const element of [root, ...(root.querySelectorAll?.("[style]") ?? [])].slice(0, 30)) {
         const background = getComputedStyle(element).backgroundImage.match(/url\(["']?(.+?)["']?\)/)?.[1]; const candidate = usableImage(background); if (candidate) return candidate;
       }
+      for (const element of [root, ...(root.querySelectorAll?.("[data-bg], [data-background], [data-background-image]") ?? [])].slice(0, 30)) {
+        const candidate = [element.getAttribute?.("data-bg"), element.getAttribute?.("data-background"), element.getAttribute?.("data-background-image")].map(usableImage).find(Boolean); if (candidate) return candidate;
+      }
+      for (const noscript of root.querySelectorAll?.("noscript") ?? []) { const candidate = usableImage((noscript.textContent || "").match(/(?:src|data-src)=["']([^"']+)/i)?.[1]); if (candidate) return candidate; }
       return undefined;
     };
     const cardFor = (link) => {
       if (makerWorld) return link.closest(".js-design-card") || link.closest(".card-wrapper") || link.parentElement || link;
-      const semantic = link.closest("article, li, [data-testid*='card'], [class*='product-card'], [class*='model-card'], [class*='listing-card']");
-      if (semantic) return semantic;
-      let current = link.parentElement; let best = link;
-      for (let depth = 0; current && depth < 4; depth += 1, current = current.parentElement) {
+      const semantic = cults3d ? link.closest("article, [class*='card'], [class*='creation'], [class*='design']") : link.closest("article, li, [data-testid*='card'], [class*='product-card'], [class*='model-card'], [class*='listing-card']");
+      if (semantic?.querySelector("img, picture, [data-bg], [data-background], [style*='background']")) return semantic;
+      let current = semantic || link.parentElement; let best = semantic || link;
+      for (let depth = 0; current && depth < 7; depth += 1, current = current.parentElement) {
         const text = compact(current.innerText || ""); if (text.length > 1_500 || current.querySelectorAll("a[href]").length > 6) break;
-        if (text || current.querySelector("img")) best = current;
+        if (text || current.querySelector("img, picture, [data-bg], [data-background], [style*='background']")) best = current;
+        if (text && current.querySelector("img, picture, [data-bg], [data-background], [style*='background']")) break;
       }
       return best;
     };
