@@ -1,7 +1,7 @@
 export const sourceDefinitions = [
   ["google-trends", "Google 趋势", true], ["etsy", "Etsy", false], ["amazon", "Amazon", false],
-  ["tiktok", "TikTok", false], ["pinterest", "Pinterest", false], ["facebook-marketplace", "Facebook Marketplace", false],
-  ["makerworld", "MakerWorld", false], ["printables", "Printables", false], ["myminifactory", "MyMiniFactory", false], ["cults3d", "Cults3D", false],
+  ["tiktok", "TikTok", false], ["instagram", "Instagram", false], ["pinterest", "Pinterest", false], ["facebook-marketplace", "Facebook Marketplace", false],
+  ["makerworld", "MakerWorld", false], ["printables", "Printables", false], ["thingiverse", "Thingiverse", false], ["myminifactory", "MyMiniFactory", false], ["cults3d", "Cults3D", false],
 ];
 
 export function createAdapters(settings = {}) {

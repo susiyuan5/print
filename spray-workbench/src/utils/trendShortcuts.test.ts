@@ -3,8 +3,9 @@ import { buildSearchUrl, calculateRadarCounters, isPublicHttpUrl, loadShortcutPr
 
 describe("trend shortcuts", () => {
   it("contains the configured official ranking and validation entry points", () => {
-    expect(officialTrendShortcuts).toHaveLength(10);
+    expect(new Set(officialTrendShortcuts.map((shortcut) => shortcut.platform)).size).toBe(9);
     expect(officialTrendShortcuts.every((shortcut) => isPublicHttpUrl(shortcut.url))).toBe(true);
+    expect(officialTrendShortcuts.filter((shortcut) => shortcut.group === "social-signal").map((shortcut) => shortcut.keyword)).toEqual(["#3dprinting", "#3dprinting"]);
   });
   it("encodes marketplace search queries", () => {
     expect(buildSearchUrl("https://www.etsy.com/search", "q", "3d printed organizer")).toContain("q=3d+printed+organizer");

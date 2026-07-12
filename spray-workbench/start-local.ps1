@@ -50,7 +50,7 @@ do {
 } until ($ready -or (Get-Date) -gt $deadline)
 
 if ($ready) {
-  Start-Process "http://localhost:5173/print/models"
+  Start-Process "http://localhost:5173/print/trend-radar"
   exit 0
 }
 
