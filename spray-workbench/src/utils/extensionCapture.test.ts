@@ -25,7 +25,7 @@ describe("Chrome extension capture bridge", () => {
   it("ships a Manifest V3 extension with only local-service host permission", async () => {
     const manifest = JSON.parse(await readFile(new URL("../../chrome-extension/manifest.json", import.meta.url), "utf8"));
     expect(manifest.manifest_version).toBe(3);
-    expect(manifest.version).toBe("1.5.1");
+    expect(manifest.version).toBe("1.5.2");
     expect(Number(manifest.minimum_chrome_version)).toBeGreaterThanOrEqual(138);
     expect(manifest.permissions).toEqual(expect.arrayContaining(["activeTab", "scripting"]));
     expect(manifest.host_permissions).toEqual(expect.arrayContaining(["http://127.0.0.1:3456/*", "https://*.makerworld.com/*"]));
@@ -42,7 +42,9 @@ describe("Chrome extension capture bridge", () => {
     expect(capturePage).toContain('String(value ?? "").split(",")');
     expect(capturePage).toContain('data-background-image');
     expect(capturePage).not.toContain("renderedDescription");
-    expect(capturePage).toContain("printablesModelCount() < 100");
+    expect(capturePage).toContain("printablesSnapshotCount() < 100");
+    expect(capturePage).toContain("collectVisibleItems()");
+    expect(capturePage).toContain("itemSnapshots.set(url, incoming)");
     expect(capturePage).toContain("previousCount < 100");
     expect(capturePage).toContain("originalScrollY");
     expect(popup).toContain("正在读取 ${extracted.items.length} 个产品详情页的 Description");

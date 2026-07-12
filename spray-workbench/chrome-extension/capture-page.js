@@ -6,20 +6,6 @@ void (async () => {
     const deadline = Date.now() + 8_000;
     while (makerWorld && !document.querySelector(".js-design-card") && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 250));
     const timedOut = makerWorld && !document.querySelector(".js-design-card");
-    const printablesModelCount = () => new Set([...document.querySelectorAll("a[href]")].map((link) => {
-      try { const url = new URL(link.href, location.href); return url.hostname.includes("printables.com") && /^\/model\/\d+(?:-[^/]+)?\/?$/i.test(url.pathname) ? `${url.origin}${url.pathname.replace(/\/$/, "")}` : undefined; } catch { return undefined; }
-    }).filter(Boolean)).size;
-    if (printables && printablesModelCount() < 100) {
-      const originalScrollY = window.scrollY; let previousCount = printablesModelCount(); let stableRounds = 0;
-      for (let round = 0; round < 36 && previousCount < 100 && stableRounds < 5; round += 1) {
-        window.scrollTo({ top: document.scrollingElement?.scrollHeight ?? document.body.scrollHeight, behavior: "instant" });
-        await new Promise((resolve) => setTimeout(resolve, 650));
-        const currentCount = printablesModelCount();
-        stableRounds = currentCount > previousCount ? 0 : stableRounds + 1; previousCount = currentCount;
-      }
-      window.scrollTo({ top: originalScrollY, behavior: "instant" });
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
     const absoluteHttpUrl = (value) => { try { const url = new URL(value, location.href); return /^https?:$/.test(url.protocol) ? url.href : undefined; } catch { return undefined; } };
     const usableImage = (value) => { const url = absoluteHttpUrl(value); return url && !/(?:placeholder|transparent|spacer|blank|pixel)(?:[._/-]|$)/i.test(url) ? url : undefined; };
     const srcsetUrls = (value) => String(value ?? "").split(",").map((part) => part.trim().split(/\s+/)[0]).map(usableImage).filter(Boolean).reverse();
@@ -51,21 +37,39 @@ void (async () => {
       }
       return best;
     };
-    const allLinks = [...document.querySelectorAll("a[href]")]; const items = [];
-    for (const link of allLinks) {
-      let url;
-      try { const parsed = new URL(link.href, location.href); if (parsed.hostname.toLowerCase().replace(/^www\./, "") !== host || !/^https?:$/.test(parsed.protocol)) continue; url = parsed.href; } catch { continue; }
-      const card = cardFor(link); const image = link.querySelector("img") || card.querySelector("img");
-      const linkText = compact(link.innerText || ""); const makerTitle = makerWorld ? compact(card.querySelector(".translated-text")?.innerText || "") : "";
-      const title = compact(makerTitle || card.querySelector("h1,h2,h3,h4,h5,h6")?.innerText || link.getAttribute("aria-label") || image?.alt || linkText.split(/\r?\n/)[0]).slice(0, 160);
-      const nearby = compact(card.innerText || linkText); const priceText = nearby.match(pricePattern)?.[0];
-      const description = compact(nearby.replace(title, "").replace(priceText || "", "")).slice(0, 300) || undefined;
-      items.push({ title, url, imageUrl: imageFrom(link) || imageFrom(card), priceText, description });
-      if (items.length >= 800) break;
+    const itemSnapshots = new Map(); const allLinkUrls = new Set();
+    const collectVisibleItems = () => {
+      for (const link of document.querySelectorAll("a[href]")) {
+        let url;
+        try { const parsed = new URL(link.href, location.href); if (parsed.hostname.toLowerCase().replace(/^www\./, "") !== host || !/^https?:$/.test(parsed.protocol)) continue; parsed.hash = ""; parsed.search = ""; url = parsed.href; } catch { continue; }
+        allLinkUrls.add(url);
+        const card = cardFor(link); const image = link.querySelector("img") || card.querySelector("img");
+        const linkText = compact(link.innerText || ""); const makerTitle = makerWorld ? compact(card.querySelector(".translated-text")?.innerText || "") : "";
+        const title = compact(makerTitle || card.querySelector("h1,h2,h3,h4,h5,h6")?.innerText || link.getAttribute("aria-label") || image?.alt || linkText.split(/\r?\n/)[0]).slice(0, 160);
+        const nearby = compact(card.innerText || linkText); const priceText = nearby.match(pricePattern)?.[0];
+        const description = compact(nearby.replace(title, "").replace(priceText || "", "")).slice(0, 300) || undefined;
+        const incoming = { title, url, imageUrl: imageFrom(link) || imageFrom(card), priceText, description }; const existing = itemSnapshots.get(url);
+        if (!existing) itemSnapshots.set(url, incoming);
+        else { if (incoming.title.length > existing.title.length) existing.title = incoming.title; existing.imageUrl ||= incoming.imageUrl; existing.priceText ||= incoming.priceText; if ((incoming.description?.length ?? 0) > (existing.description?.length ?? 0)) existing.description = incoming.description; }
+      }
+    };
+    const printablesSnapshotCount = () => [...itemSnapshots.keys()].filter((value) => { try { return /^\/model\/\d+(?:-[^/]+)?\/?$/i.test(new URL(value).pathname); } catch { return false; } }).length;
+    collectVisibleItems();
+    if (printables && printablesSnapshotCount() < 100) {
+      const originalScrollY = window.scrollY; window.scrollTo({ top: 0, behavior: "instant" }); await new Promise((resolve) => setTimeout(resolve, 500)); collectVisibleItems();
+      let previousCount = printablesSnapshotCount(); let stableRounds = 0;
+      for (let round = 0; round < 60 && previousCount < 100 && stableRounds < 7; round += 1) {
+        const before = window.scrollY; window.scrollBy({ top: Math.max(window.innerHeight * .85, 600), behavior: "instant" });
+        if (window.scrollY === before) window.scrollTo({ top: document.scrollingElement?.scrollHeight ?? document.body.scrollHeight, behavior: "instant" });
+        await new Promise((resolve) => setTimeout(resolve, 500)); collectVisibleItems();
+        const currentCount = printablesSnapshotCount(); stableRounds = currentCount > previousCount ? 0 : stableRounds + 1; previousCount = currentCount;
+      }
+      window.scrollTo({ top: originalScrollY, behavior: "instant" });
     }
+    const items = [...itemSnapshots.values()];
     const meta = (selector) => compact(document.querySelector(selector)?.content || "");
     items.push({ title: meta("meta[property='og:title']") || compact(document.querySelector("h1")?.innerText || document.title).slice(0, 160), url: document.querySelector("link[rel='canonical']")?.href || location.href, imageUrl: usableImage(meta("meta[property='og:image']") || meta("meta[name='twitter:image']")), priceText: meta("meta[property='product:price:amount']") || undefined, description: (meta("meta[property='og:description']") || meta("meta[name='description']")).slice(0, 300) || undefined });
-    await chrome.runtime.sendMessage({ type: "page-capture-result", payload: { pageUrl: location.href, pageTitle: document.title, totalLinks: allLinks.length, timedOut, items } });
+    await chrome.runtime.sendMessage({ type: "page-capture-result", payload: { pageUrl: location.href, pageTitle: document.title, totalLinks: allLinkUrls.size, timedOut, items } });
   } catch (error) {
     await chrome.runtime.sendMessage({ type: "page-capture-result", error: error instanceof Error ? error.message : String(error) }).catch(() => undefined);
   }
