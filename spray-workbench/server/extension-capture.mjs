@@ -13,6 +13,9 @@ export function normalizeExtensionCapture(payload = {}, { validateUrl, detectSou
       imageUrl: typeof item.imageUrl === "string" ? item.imageUrl : undefined,
       priceText: typeof item.priceText === "string" ? item.priceText : undefined,
       description: typeof item.description === "string" ? item.description.replace(/\s+/g, " ").trim().slice(0, 300) || undefined : undefined,
+      sourceDescription: typeof item.sourceDescription === "string" ? item.sourceDescription.replace(/\s+/g, " ").trim().slice(0, 300) || undefined : undefined,
+      descriptionLanguage: typeof item.descriptionLanguage === "string" ? item.descriptionLanguage.slice(0, 20) : undefined,
+      translationStatus: ["translated", "not-needed", "unavailable", "failed"].includes(item.translationStatus) ? item.translationStatus : undefined,
       source,
       attribution: source,
       keywords: Array.isArray(item.keywords) ? item.keywords.filter((keyword) => typeof keyword === "string").slice(0, 20) : undefined,
@@ -25,6 +28,6 @@ export function normalizeExtensionCapture(payload = {}, { validateUrl, detectSou
     pageTitle: typeof payload.pageTitle === "string" ? payload.pageTitle.slice(0, 200) : "",
     capturedAt: now,
     items,
-    warnings: ["由当前 Chrome 标签页扩展手动提交；请在导入前确认内容。"],
+    warnings: ["由当前 Chrome 标签页扩展手动提交；请在导入前确认内容。", ...(items.some((item) => item.translationStatus === "unavailable" || item.translationStatus === "failed") ? ["部分说明无法使用 Chrome 本机翻译，已保留来源原文。"] : [])],
   };
 }
