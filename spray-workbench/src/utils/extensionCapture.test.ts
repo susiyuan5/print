@@ -25,9 +25,18 @@ describe("Chrome extension capture bridge", () => {
   it("ships a Manifest V3 extension with only local-service host permission", async () => {
     const manifest = JSON.parse(await readFile(new URL("../../chrome-extension/manifest.json", import.meta.url), "utf8"));
     expect(manifest.manifest_version).toBe(3);
-    expect(manifest.version).toBe("1.2.2");
+    expect(manifest.version).toBe("1.3.0");
     expect(Number(manifest.minimum_chrome_version)).toBeGreaterThanOrEqual(138);
     expect(manifest.permissions).toEqual(expect.arrayContaining(["activeTab", "scripting"]));
     expect(manifest.host_permissions).toEqual(["http://127.0.0.1:3456/*"]);
+  });
+  it("uses a content-script message instead of the nullable executeScript result", async () => {
+    const [popup, capturePage] = await Promise.all([
+      readFile(new URL("../../chrome-extension/popup.js", import.meta.url), "utf8"),
+      readFile(new URL("../../chrome-extension/capture-page.js", import.meta.url), "utf8"),
+    ]);
+    expect(popup).toContain('files: ["capture-page.js"]');
+    expect(popup).toContain('message?.type !== "page-capture-result"');
+    expect(capturePage).toContain('type: "page-capture-result"');
   });
 });

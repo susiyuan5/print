@@ -4,70 +4,19 @@ import { prepareTranslator, translateDescriptions } from "./translation.js";
 const page = document.querySelector("#page"); const status = document.querySelector("#status"); const button = document.querySelector("#capture");
 let activeTab; let activeSource = "generic"; let pageLanguage = "und";
 
-const extractRawPageItems = () => {
-  const pricePattern = /(?:CA\$|US\$|\$|£|€)\s?\d+(?:[.,]\d+)?/;
-  const compact = (value = "") => value.replace(/\s+/g, " ").trim();
-  const host = location.hostname.toLowerCase().replace(/^www\./, ""); const makerWorld = host.includes("makerworld.com");
-  const absoluteHttpUrl = (value) => { try { const url = new URL(value, location.href); return /^https?:$/.test(url.protocol) ? url.href : undefined; } catch { return undefined; } };
-  const usableImage = (value) => { const url = absoluteHttpUrl(value); return url && !/(?:placeholder|transparent|spacer|blank|pixel)(?:[._/-]|$)/i.test(url) ? url : undefined; };
-  const srcsetUrls = (value = "") => value.split(",").map((part) => part.trim().split(/\s+/)[0]).map(usableImage).filter(Boolean).reverse();
-  const imageFrom = (root) => {
-    if (!root) return undefined;
-    for (const image of root.matches?.("img") ? [root] : [...(root.querySelectorAll?.("img") ?? [])]) {
-      const candidates = [image.currentSrc, ...srcsetUrls(image.getAttribute("data-srcset")), ...srcsetUrls(image.getAttribute("srcset")), image.getAttribute("data-original"), image.getAttribute("data-src"), image.getAttribute("data-lazy-src"), image.getAttribute("src")];
-      const candidate = candidates.map(usableImage).find(Boolean); if (candidate) return candidate;
-    }
-    for (const entry of root.querySelectorAll?.("picture source") ?? []) { const candidate = [...srcsetUrls(entry.getAttribute("srcset")), ...srcsetUrls(entry.getAttribute("data-srcset"))][0]; if (candidate) return candidate; }
-    for (const element of [root, ...(root.querySelectorAll?.("[style]") ?? [])].slice(0, 30)) {
-      const background = getComputedStyle(element).backgroundImage.match(/url\(["']?(.+?)["']?\)/)?.[1]; const candidate = usableImage(background); if (candidate) return candidate;
-    }
-    return undefined;
+const captureFromContentScript = (tabId) => new Promise((resolve, reject) => {
+  const timeout = setTimeout(() => finish(new Error("页面提取超时，请刷新当前页面后重试")), 12_000);
+  const listener = (message, sender) => {
+    if (message?.type !== "page-capture-result" || sender.tab?.id !== tabId) return;
+    finish(message.error ? new Error(message.error) : undefined, message.payload);
   };
-  const cardFor = (link) => {
-    if (makerWorld) return link.closest(".js-design-card") || link.closest(".card-wrapper") || link.parentElement || link;
-    const semantic = link.closest("article, li, [data-testid*='card'], [class*='product-card'], [class*='model-card'], [class*='listing-card']");
-    if (semantic) return semantic;
-    let current = link.parentElement; let best = link;
-    for (let depth = 0; current && depth < 4; depth += 1, current = current.parentElement) {
-      const text = compact(current.innerText || ""); if (text.length > 1_500 || current.querySelectorAll("a[href]").length > 6) break;
-      if (text || current.querySelector("img")) best = current;
-    }
-    return best;
+  const finish = (error, payload) => {
+    clearTimeout(timeout); chrome.runtime.onMessage.removeListener(listener);
+    error ? reject(error) : resolve(payload);
   };
-  const allLinks = [...document.querySelectorAll("a[href]")]; const items = [];
-  for (const link of allLinks) {
-    let url;
-    try { const parsed = new URL(link.href, location.href); if (parsed.hostname.toLowerCase().replace(/^www\./, "") !== host || !/^https?:$/.test(parsed.protocol)) continue; url = parsed.href; } catch { continue; }
-    const card = cardFor(link); const image = link.querySelector("img") || card.querySelector("img");
-    const linkText = compact(link.innerText || "");
-    const makerTitle = makerWorld ? compact(card.querySelector(".translated-text")?.innerText || "") : "";
-    const title = compact(makerTitle || card.querySelector("h1,h2,h3,h4,h5,h6")?.innerText || link.getAttribute("aria-label") || image?.alt || linkText.split(/\r?\n/)[0]).slice(0, 160);
-    const nearby = compact(card.innerText || linkText); const priceText = nearby.match(pricePattern)?.[0];
-    const description = compact(nearby.replace(title, "").replace(priceText || "", "")).slice(0, 300) || undefined;
-    items.push({ title, url, imageUrl: imageFrom(link) || imageFrom(card), priceText, description });
-    if (items.length >= 800) break;
-  }
-  const meta = (selector) => compact(document.querySelector(selector)?.content || "");
-  items.push({
-    title: meta("meta[property='og:title']") || compact(document.querySelector("h1")?.innerText || document.title).slice(0, 160),
-    url: document.querySelector("link[rel='canonical']")?.href || location.href,
-    imageUrl: usableImage(meta("meta[property='og:image']") || meta("meta[name='twitter:image']")),
-    priceText: meta("meta[property='product:price:amount']") || undefined,
-    description: (meta("meta[property='og:description']") || meta("meta[name='description']")).slice(0, 300) || undefined,
-  });
-  return JSON.parse(JSON.stringify({ pageUrl: location.href, pageTitle: document.title, totalLinks: allLinks.length, items }));
-};
-
-const waitForPageCards = async (tabId, source) => {
-  if (source !== "makerworld") return false;
-  const deadline = Date.now() + 8_000;
-  while (Date.now() < deadline) {
-    const [probe] = await chrome.scripting.executeScript({ target: { tabId }, func: () => ({ cards: document.querySelectorAll(".js-design-card").length, links: document.querySelectorAll("a[href]").length }) });
-    if (probe?.result?.cards > 0) return false;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  return true;
-};
+  chrome.runtime.onMessage.addListener(listener);
+  chrome.scripting.executeScript({ target: { tabId }, files: ["capture-page.js"] }).catch((error) => finish(error));
+});
 
 chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
   activeTab = tab; activeSource = sourceFromUrl(tab?.url); const valid = /^https?:/.test(tab?.url || "") && activeSource !== "generic";
@@ -81,10 +30,8 @@ button.addEventListener("click", async () => {
   button.disabled = true; status.textContent = "正在读取已加载的具体项目…";
   const translatorTask = prepareTranslator(pageLanguage, globalThis.Translator, (progress) => { status.textContent = `正在下载本机语言包 ${progress}%…`; });
   try {
-    const timedOut = await waitForPageCards(activeTab.id, activeSource);
-    const [result] = await chrome.scripting.executeScript({ target: { tabId: activeTab.id }, func: extractRawPageItems });
-    if (!result?.result || typeof result.result !== "object") throw new Error("页面提取没有返回数据，请重新加载扩展和当前页面后重试");
-    const extracted = normalizeRawPageCapture({ ...result.result, timedOut }, activeSource);
+    const rawCapture = await captureFromContentScript(activeTab.id);
+    const extracted = normalizeRawPageCapture(rawCapture, activeSource);
     if (!extracted.items.length) throw new Error(captureDiagnosticMessage(extracted.diagnostics));
     const prepared = await translatorTask;
     const items = await translateDescriptions(extracted.items, prepared, (done, total) => { status.textContent = `正在本机翻译说明 ${done}/${total}…`; });
